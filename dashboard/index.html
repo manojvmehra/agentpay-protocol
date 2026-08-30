@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentPay — AI Agent Commerce</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-2: #1a1a26;
+    --border: #2a2a3a;
+    --text: #e4e4ef;
+    --text-dim: #8888a0;
+    --accent: #00d4aa;
+    --accent-glow: #00d4aa33;
+    --blue: #4488ff;
+    --orange: #ff8844;
+    --red: #ff4466;
+    --green: #00cc88;
+    --purple: #aa66ff;
+    --yellow: #ffcc00;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .app {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--bg);
+    font-size: 18px;
+  }
+
+  .logo h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .logo h1 span { color: var(--accent); }
+
+  .header-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-glow);
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 400px 1fr 340px;
+    height: calc(100vh - 77px);
+    overflow: hidden;
+  }
+
+  /* ── Left Panel: Input ── */
+  .panel-left {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .input-area {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .input-area textarea {
+    flex: 1;
+    min-height: 120px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .input-area textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .input-area textarea::placeholder {
+    color: var(--text-dim);
+  }
+
+  .btn {
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Quick prompts */
+  .quick-prompts {
+    padding: 0 20px 16px;
+  }
+
+  .quick-prompts p {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .prompt-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .prompt-chip {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .prompt-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Merchants list */
+  .merchants-list {
+    border-top: 1px solid var(--border);
+    padding: 16px 20px;
+    overflow-y: auto;
+  }
+
+  .merchant-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
+  .merchant-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .merchant-card p {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .merchant-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    color: var(--blue);
+    margin-right: 4px;
+    margin-top: 6px;
+  }
+
+  /* ── Center Panel: Live Feed ── */
+  .panel-center {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .feed-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    color: var(--text-dim);
+  }
+
+  .feed-empty .icon {
+    font-size: 48px;
+    opacity: 0.3;
+  }
+
+  .event-card {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    animation: slideIn 0.3s ease;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .event-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .event-card.parsing { background: #1a1a2e; }
+  .event-card.parsing .event-dot { background: var(--blue); }
+
+  .event-card.parsed { background: #1a1a2e; }
+  .event-card.parsed .event-dot { background: var(--blue); }
+
+  .event-card.discovery, .event-card.catalog_received { background: #1a1e2a; }
+  .event-card.discovery .event-dot, .event-card.catalog_received .event-dot { background: var(--purple); }
+
+  .event-card.analyzing { background: #1e1a2a; }
+  .event-card.analyzing .event-dot { background: var(--purple); }
+
+  .event-card.negotiating, .event-card.negotiation_round { background: #1e1e1a; }
+  .event-card.negotiating .event-dot, .event-card.negotiation_round .event-dot { background: var(--orange); }
+
+  .event-card.negotiation_accepted, .event-card.negotiation_counter { background: #1a1e1a; }
+  .event-card.negotiation_accepted .event-dot { background: var(--green); }
+  .event-card.negotiation_counter .event-dot { background: var(--yellow); }
+
+  .event-card.payment_processing { background: #1a1a2e; }
+  .event-card.payment_processing .event-dot { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+
+  .event-card.payment_success { background: #0d1f17; border: 1px solid #1a3a2a; }
+  .event-card.payment_success .event-dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+  .event-card.payment_failed { background: #1f0d0d; border: 1px solid #3a1a1a; }
+  .event-card.payment_failed .event-dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+  .event-card.complete { 
+    background: linear-gradient(135deg, #0d1f17, #0d171f); 
+    border: 1px solid var(--accent);
+    font-weight: 500;
+  }
+  .event-card.complete .event-dot { background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+
+  .event-card.error { background: #1f0d0d; }
+  .event-card.error .event-dot { background: var(--red); }
+
+  /* ── Right Panel: Metrics ── */
+  .panel-right {
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .metrics-grid {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .metric-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .metric-box .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .metric-box .label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+  }
+
+  .metric-box.wide {
+    grid-column: span 2;
+  }
+
+  .metric-box.spent .value { color: var(--blue); }
+  .metric-box.saved .value { color: var(--green); }
+  .metric-box.failed .value { color: var(--red); }
+
+  /* Order cards */
+  .orders-section {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .order-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
+  .order-card h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .order-card .order-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .order-card .order-status {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .order-card .order-status.success { background: #0d1f17; color: var(--green); }
+  .order-card .order-status.failed { background: #1f0d0d; color: var(--red); }
+  .order-card .order-status.pending { background: #1e1e1a; color: var(--yellow); }
+
+  .order-item {
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 2px 0;
+  }
+
+  .order-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Audit trail */
+  .audit-section {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .audit-entry {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 4px 0;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+  }
+
+  .audit-entry .time {
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  .audit-entry .type {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">A</div>
+      <h1>Agent<span>Pay</span></h1>
+    </div>
+    <div class="header-badge">PROTOCOL v1.0 — RAZORPAY TEST MODE</div>
+  </header>
+
+  <div class="main">
+    <!-- Left Panel -->
+    <div class="panel-left">
+      <div class="panel-title">Agent Command</div>
+      <div class="input-area">
+        <textarea id="requestInput" placeholder="Tell the agent what you need...&#10;&#10;Example: Plan my college fest for 500 people. I need t-shirts, banners, ID cards, and lunch for everyone. Budget is ₹1,50,000."></textarea>
+        <button class="btn btn-primary" id="shopBtn" onclick="startShopping()">
+          Run Agent
+        </button>
+      </div>
+
+      <div class="quick-prompts">
+        <p>Quick Prompts</p>
+        <div class="prompt-chips">
+          <div class="prompt-chip" onclick="usePrompt(this)">College fest, 500 people, ₹1.5L</div>
+          <div class="prompt-chip" onclick="usePrompt(this)">Workshop for 100, need food + IDs</div>
+          <div class="prompt-chip" onclick="usePrompt(this)">Hackathon, 200 devs, low budget ₹50k</div>
+          <div class="prompt-chip" onclick="usePrompt(this)">Cultural night, 1000 people, premium</div>
+        </div>
+      </div>
+
+      <div class="merchants-list">
+        <div class="panel-title" style="padding: 0 0 12px 0;">Registered Merchants</div>
+        <div id="merchantsList"></div>
+      </div>
+    </div>
+
+    <!-- Center Panel -->
+    <div class="panel-center">
+      <div class="panel-title">Live Agent Feed</div>
+      <div class="feed" id="feed">
+        <div class="feed-empty">
+          <div class="icon">⚡</div>
+          <div>Enter a request and hit "Run Agent" to start</div>
+          <div style="font-size: 12px;">The agent will negotiate across merchants in real-time</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="panel-right">
+      <div class="panel-title">Session Metrics</div>
+      <div class="metrics-grid" id="metricsGrid">
+        <div class="metric-box wide">
+          <div class="value" id="metricBudget">—</div>
+          <div class="label">Budget</div>
+        </div>
+        <div class="metric-box spent">
+          <div class="value" id="metricSpent">—</div>
+          <div class="label">Spent</div>
+        </div>
+        <div class="metric-box saved">
+          <div class="value" id="metricSaved">—</div>
+          <div class="label">Saved</div>
+        </div>
+        <div class="metric-box">
+          <div class="value" id="metricMerchants">0</div>
+          <div class="label">Merchants</div>
+        </div>
+        <div class="metric-box">
+          <div class="value" id="metricNegotiations">0</div>
+          <div class="label">Negotiations</div>
+        </div>
+        <div class="metric-box">
+          <div class="value" id="metricPayments">0</div>
+          <div class="label">Payments</div>
+        </div>
+        <div class="metric-box failed">
+          <div class="value" id="metricFailures">0</div>
+          <div class="label">Failures</div>
+        </div>
+      </div>
+
+      <div class="orders-section">
+        <div class="panel-title" style="padding: 0 0 12px 0;">Orders</div>
+        <div id="ordersList"></div>
+      </div>
+
+      <div class="audit-section">
+        <div class="panel-title" style="padding: 0 0 12px 0;">Audit Trail</div>
+        <div id="auditTrail"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = window.location.origin;
+  let ws = null;
+  let isRunning = false;
+
+  // Load merchants on page load
+  async function loadMerchants() {
+    try {
+      const res = await fetch(`${API}/api/merchants`);
+      const data = await res.json();
+      const container = document.getElementById('merchantsList');
+      container.innerHTML = data.merchants.map(m => `
+        <div class="merchant-card">
+          <h3>${m.name}</h3>
+          <p>${m.description}</p>
+          <div>${m.categories.map(c => `<span class="merchant-tag">${c}</span>`).join('')}</div>
+          <p style="margin-top:6px;font-size:11px;color:var(--accent)">${m.product_count} products</p>
+        </div>
+      `).join('');
+    } catch (e) {
+      console.error('Failed to load merchants:', e);
+    }
+  }
+
+  function usePrompt(el) {
+    const prompts = {
+      'College fest, 500 people, ₹1.5L': 'Plan my college fest for 500 people. I need custom t-shirts for volunteers, printed banners and ID cards for everyone, and lunch boxes. Budget is ₹1,50,000.',
+      'Workshop for 100, need food + IDs': 'Organizing a tech workshop for 100 attendees. Need PVC ID cards with lanyards, tea-time snacks, and water bottles. Budget: ₹40,000.',
+      'Hackathon, 200 devs, low budget ₹50k': 'Planning a hackathon for 200 developers. Need basic t-shirts, stickers, lunch boxes, and some banners. Keep it under ₹50,000 — negotiate hard!',
+      'Cultural night, 1000 people, premium': 'Cultural night for 1000 people. Need premium t-shirts for 50 organizers, fabric banners, standees, roll-up posters, full veg buffet for 1000, and a live chai station for 4 hours. Budget: ₹5,00,000.',
+    };
+    document.getElementById('requestInput').value = prompts[el.textContent] || el.textContent;
+  }
+
+  async function startShopping() {
+    const input = document.getElementById('requestInput').value.trim();
+    if (!input || isRunning) return;
+
+    isRunning = true;
+    const btn = document.getElementById('shopBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Agent Running...';
+
+    // Clear feed
+    document.getElementById('feed').innerHTML = '';
+    document.getElementById('ordersList').innerHTML = '';
+    document.getElementById('auditTrail').innerHTML = '';
+
+    // Connect WebSocket for live updates
+    connectWebSocket(input);
+  }
+
+  function connectWebSocket(request) {
+    const wsUrl = `${API.replace('http', 'ws')}/ws`;
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'shop', request }));
+    };
+
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      handleEvent(data);
+    };
+
+    ws.onerror = (e) => {
+      console.error('WebSocket error, falling back to REST:', e);
+      ws.close();
+      fallbackToRest(request);
+    };
+
+    ws.onclose = () => {
+      isRunning = false;
+      const btn = document.getElementById('shopBtn');
+      btn.disabled = false;
+      btn.innerHTML = 'Run Agent';
+    };
+  }
+
+  async function fallbackToRest(request) {
+    try {
+      addFeedEvent('parsing', `Processing: "${request}"`);
+      const res = await fetch(`${API}/api/shop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request }),
+      });
+      const data = await res.json();
+      
+      // Show results
+      updateMetrics(data.metrics);
+      data.orders.forEach(o => addOrderCard(o));
+      addFeedEvent('complete', `Done! Spent ₹${data.total_spent?.toLocaleString()} — Saved ₹${data.total_saved?.toLocaleString()}`);
+    } catch (e) {
+      addFeedEvent('error', `Error: ${e.message}`);
+    } finally {
+      isRunning = false;
+      const btn = document.getElementById('shopBtn');
+      btn.disabled = false;
+      btn.innerHTML = 'Run Agent';
+    }
+  }
+
+  function handleEvent(data) {
+    const event = data.event;
+    const message = data.message || '';
+
+    // Add to feed
+    addFeedEvent(event, message);
+
+    // Add to audit trail
+    addAuditEntry(event, message);
+
+    // Update metrics from specific events
+    if (event === 'parsed' && data.parsed) {
+      document.getElementById('metricBudget').textContent = `₹${(data.parsed.budget || 0).toLocaleString()}`;
+    }
+    if (event === 'catalog_received') {
+      const el = document.getElementById('metricMerchants');
+      el.textContent = parseInt(el.textContent || 0) + 1;
+    }
+    if (event === 'negotiation_accepted' || event === 'negotiation_rejected') {
+      const el = document.getElementById('metricNegotiations');
+      el.textContent = parseInt(el.textContent || 0) + 1;
+    }
+    if (event === 'payment_success') {
+      const el = document.getElementById('metricPayments');
+      el.textContent = parseInt(el.textContent || 0) + 1;
+      addOrderCard({
+        merchant: data.merchant,
+        amount: data.amount,
+        payment_status: 'success',
+        razorpay_order_id: data.order_id,
+      });
+    }
+    if (event === 'payment_failed') {
+      const el = document.getElementById('metricFailures');
+      el.textContent = parseInt(el.textContent || 0) + 1;
+    }
+    if (event === 'complete' && data.report) {
+      document.getElementById('metricSpent').textContent = `₹${(data.report.total_spent || 0).toLocaleString()}`;
+      document.getElementById('metricSaved').textContent = `₹${(data.report.total_saved || 0).toLocaleString()}`;
+    }
+    if (event === 'final_report' && data.report) {
+      updateMetrics(data.report.metrics);
+    }
+  }
+
+  function addFeedEvent(type, message) {
+    const feed = document.getElementById('feed');
+    // Remove empty state
+    const empty = feed.querySelector('.feed-empty');
+    if (empty) empty.remove();
+
+    const card = document.createElement('div');
+    card.className = `event-card ${type}`;
+    card.innerHTML = `<div class="event-dot"></div><div>${message}</div>`;
+    feed.appendChild(card);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  function addAuditEntry(type, message) {
+    const trail = document.getElementById('auditTrail');
+    const time = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = 'audit-entry';
+    entry.innerHTML = `<span class="time">${time}</span> <span class="type">[${type}]</span> ${message}`;
+    trail.appendChild(entry);
+    trail.scrollTop = trail.scrollHeight;
+  }
+
+  function addOrderCard(order) {
+    const container = document.getElementById('ordersList');
+    const statusClass = order.payment_status || 'pending';
+    const card = document.createElement('div');
+    card.className = 'order-card';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h4>${order.merchant || 'Unknown'}</h4>
+        <span class="order-status ${statusClass}">${statusClass}</span>
+      </div>
+      <div class="order-amount">₹${(order.amount || 0).toLocaleString()}</div>
+      ${order.items ? order.items.map(i => 
+        `<div class="order-item">${i.name || i.product_id} × ${i.quantity}</div>`
+      ).join('') : ''}
+      ${order.razorpay_order_id ? `<div class="order-meta">Razorpay: ${order.razorpay_order_id}</div>` : ''}
+      ${order.negotiation_rounds ? `<div class="order-meta">Negotiated in ${order.negotiation_rounds} round(s)</div>` : ''}
+    `;
+    container.appendChild(card);
+  }
+
+  function updateMetrics(metrics) {
+    if (!metrics) return;
+    if (metrics.budget) document.getElementById('metricBudget').textContent = `₹${metrics.budget.toLocaleString()}`;
+    if (metrics.total_spent !== undefined) document.getElementById('metricSpent').textContent = `₹${metrics.total_spent.toLocaleString()}`;
+    if (metrics.total_saved_negotiation !== undefined) document.getElementById('metricSaved').textContent = `₹${metrics.total_saved_negotiation.toLocaleString()}`;
+    if (metrics.merchants_contacted !== undefined) document.getElementById('metricMerchants').textContent = metrics.merchants_contacted;
+    if (metrics.negotiations_completed !== undefined) document.getElementById('metricNegotiations').textContent = metrics.negotiations_completed;
+    if (metrics.payments_successful !== undefined) document.getElementById('metricPayments').textContent = metrics.payments_successful;
+    if (metrics.failures_encountered !== undefined) document.getElementById('metricFailures').textContent = metrics.failures_encountered;
+  }
+
+  // Init
+  loadMerchants();
+</script>
+</body>
+</html>
