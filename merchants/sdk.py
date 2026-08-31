@@ -130,6 +130,7 @@ class MerchantAgent:
                 "min_order": p.min_order,
                 "in_stock": p.in_stock,
                 "bulk_discounts": p.bulk_discount_rules,
+                "image_url": p.image_url,
             })
         
         # Include combo deals if applicable
@@ -342,17 +343,39 @@ class MerchantAgent:
             payload={"error": f"Unknown message type: {msg.type}"}
         )
     
-    def get_catalog_summary(self) -> str:
-        """Get a human-readable catalog summary for the LLM."""
+    def get_catalog_summary(self, categories: Optional[list] = None, limit: int = 20) -> str:
+        """
+        Get a human-readable catalog summary for the LLM.
+
+        With hundreds of products per merchant, dumping the full catalog into
+        an LLM prompt blows past token/rate limits. So this filters to the
+        requested categories (if given) and caps the number of lines,
+        cheapest-first, noting how many were omitted.
+        """
         lines = [f"=== {self.info.name} ===", f"{self.info.description}", ""]
         lines.append("Products:")
-        for p in self.products.values():
+
+        products = list(self.products.values())
+        if categories:
+            wanted = {c.lower() for c in categories}
+            filtered = [p for p in products if p.category.lower() in wanted]
+            # Fall back to the full catalog if none of the requested categories match
+            products = filtered if filtered else products
+
+        products.sort(key=lambda p: p.base_price)
+        shown = products[:limit]
+        remaining = len(products) - len(shown)
+
+        for p in shown:
             discount_info = ""
             if p.bulk_discount_rules:
                 discounts = [f"{r['min_qty']}+ units: {r['discount_pct']}% off" for r in p.bulk_discount_rules]
                 discount_info = f" | Bulk discounts: {', '.join(discounts)}"
             lines.append(f"  - {p.name} (ID: {p.id}): ₹{p.base_price}/{p.unit}{discount_info}")
-        
+
+        if remaining > 0:
+            lines.append(f"  ...and {remaining} more product(s) available in this store.")
+
         if self.combo_deals:
             lines.append("\nCombo Deals:")
             for combo in self.combo_deals:

@@ -93,6 +93,9 @@ class BuyerAgent:
             "message": f"Checking {len(self.merchants)} merchants..."
         })
         
+        requested_categories = [r.get("category") for r in parsed.get("requirements", []) if r.get("category")]
+        wanted_categories = {c.lower() for c in requested_categories}
+
         merchant_catalogs = {}
         for mid, merchant in self.merchants.items():
             catalog_msg = merchant.handle_message(ProtocolMessage(
@@ -105,23 +108,30 @@ class BuyerAgent:
             merchant_catalogs[mid] = {
                 "name": merchant.info.name,
                 "catalog": catalog_msg.payload,
-                "summary": merchant.get_catalog_summary(),
+                "summary": merchant.get_catalog_summary(categories=requested_categories, limit=12),
+                "relevant": not wanted_categories or any(c.lower() in wanted_categories for c in merchant.info.categories),
             }
             report.merchants_contacted += 1
-            
+
             await notify("catalog_received", {
                 "message": f"Got catalog from {merchant.info.name} — "
                            f"{catalog_msg.payload['total_results']} products",
                 "merchant": merchant.info.name,
                 "products": catalog_msg.payload["total_results"],
             })
-        
-        # Step 3: Use AI to decide what to buy from whom
+
+        # Step 3: Use AI to decide what to buy from whom.
+        # Only send the LLM catalogs from merchants relevant to the parsed categories —
+        # with hundreds of products per store across 6 merchants, including everyone
+        # blows straight through Groq's per-minute token limit regardless of per-merchant caps.
+        relevant_catalogs = {mid: c for mid, c in merchant_catalogs.items() if c["relevant"]}
+        catalogs_for_llm = relevant_catalogs if relevant_catalogs else merchant_catalogs
+
         await notify("analyzing", {
-            "message": "Comparing options across all merchants..."
+            "message": f"Comparing options across {len(catalogs_for_llm)} relevant merchant(s)..."
         })
-        
-        shopping_plan = await self._plan_shopping(parsed, merchant_catalogs)
+
+        shopping_plan = await self._plan_shopping(parsed, catalogs_for_llm)
         
         if "error" in shopping_plan:
             await notify("error", {"message": f"Planning failed: {shopping_plan['error']}"})

@@ -9,3 +9,4 @@ build/
 .DS_Store
 /agentpay-protocol/
 /{protocol,merchants,agents,payments,dashboard,tests}/
+.claude/

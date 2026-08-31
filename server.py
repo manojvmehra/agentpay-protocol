@@ -7,7 +7,8 @@ and serves the real-time dashboard.
 
 import asyncio
 import json
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import math
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +19,10 @@ from agents.buyer import BuyerAgent
 from merchants.festkart import create_festkart
 from merchants.printboss import create_printboss
 from merchants.catercloud import create_catercloud
-from config import HOST, PORT
+from merchants.techbazaar import create_techbazaar
+from merchants.giftgenie import create_giftgenie
+from merchants.sportstar import create_sportstar
+from config import HOST, PORT, RAZORPAY_KEY_ID
 
 app = FastAPI(
     title="AgentPay Protocol",
@@ -40,10 +44,16 @@ buyer_agent = BuyerAgent()
 festkart = create_festkart()
 printboss = create_printboss()
 catercloud = create_catercloud()
+techbazaar = create_techbazaar()
+giftgenie = create_giftgenie()
+sportstar = create_sportstar()
 
 buyer_agent.register_merchant(festkart)
 buyer_agent.register_merchant(printboss)
 buyer_agent.register_merchant(catercloud)
+buyer_agent.register_merchant(techbazaar)
+buyer_agent.register_merchant(giftgenie)
+buyer_agent.register_merchant(sportstar)
 
 # Store active WebSocket connections for live updates
 active_connections: list[WebSocket] = []
@@ -58,6 +68,12 @@ class MerchantQuery(BaseModel):
     merchant_id: str
     query: str
     quantity: int = 1
+
+
+class PaymentVerifyRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
 
 
 # ── API Endpoints ──
@@ -95,6 +111,109 @@ async def list_merchants():
     return {"merchants": merchants, "total": len(merchants)}
 
 
+@app.get("/api/config")
+async def get_config():
+    """Public config for the frontend — never expose key_secret."""
+    return {"key_id": RAZORPAY_KEY_ID, "razorpay_enabled": True}
+
+
+@app.get("/api/products")
+async def list_products(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+    sort: Optional[str] = None,
+    merchant: Optional[str] = None,
+):
+    """
+    Flat, paginated product listing across all merchants for the storefront.
+    - category: comma-separated list of underlying category values (e.g. "apparel,accessories")
+    - merchant: merchant id to filter to a single store
+    - sort: "price_asc" | "price_desc" | "merchant"
+    """
+    all_products = []
+    for mid, m in buyer_agent.merchants.items():
+        if merchant and mid != merchant:
+            continue
+        for p in m.products.values():
+            all_products.append({
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "category": p.category,
+                "base_price": p.base_price,
+                "unit": p.unit,
+                "min_order": p.min_order,
+                "max_order": p.max_order,
+                "in_stock": p.in_stock,
+                "bulk_discounts": p.bulk_discount_rules,
+                "image_url": p.image_url,
+                "merchant_id": mid,
+                "merchant_name": m.info.name,
+            })
+
+    if category:
+        wanted = {c.strip().lower() for c in category.split(",") if c.strip()}
+        all_products = [p for p in all_products if p["category"].lower() in wanted]
+
+    if search:
+        q = search.lower()
+        all_products = [
+            p for p in all_products
+            if q in p["name"].lower() or q in p["description"].lower() or q in p["merchant_name"].lower()
+        ]
+
+    if sort == "price_asc":
+        all_products.sort(key=lambda p: p["base_price"])
+    elif sort == "price_desc":
+        all_products.sort(key=lambda p: p["base_price"], reverse=True)
+    elif sort == "merchant":
+        all_products.sort(key=lambda p: p["merchant_name"])
+
+    total = len(all_products)
+    pages = max(1, math.ceil(total / limit))
+    page = min(page, pages)
+    start = (page - 1) * limit
+    page_items = all_products[start:start + limit]
+
+    return {"products": page_items, "total": total, "page": page, "pages": pages}
+
+
+def build_shop_response(report) -> dict:
+    """Shared shape for both POST /api/shop and the WS final_report event, so the
+    frontend gets full checkout-ready order details regardless of which path it used."""
+    return {
+        "session_id": report.session_id,
+        "request": report.user_request,
+        "budget": report.budget,
+        "total_spent": report.total_spent,
+        "budget_remaining": report.budget_remaining,
+        "total_saved": report.total_saved,
+        "orders": [
+            {
+                "merchant": o.merchant_name,
+                "merchant_id": o.merchant_id,
+                "items": o.items,
+                "amount": o.final_amount,
+                "discount": o.discount_applied,
+                "payment_status": o.payment_status,
+                "razorpay_order_id": o.razorpay_order_id,
+                "negotiation_rounds": o.negotiation_rounds,
+                "audit_trail": o.audit_trail,
+                "checkout": {
+                    "order_id": o.razorpay_order_id,
+                    "amount": int(round(o.final_amount * 100)),  # paise, for checkout.js
+                    "currency": "INR",
+                } if o.payment_status == "success" and o.razorpay_order_id else None,
+            }
+            for o in report.orders
+        ],
+        "metrics": buyer_agent.get_metrics(),
+        "failures": report.failures,
+    }
+
+
 @app.post("/api/shop")
 async def start_shopping(request: ShoppingRequest):
     """
@@ -112,32 +231,9 @@ async def start_shopping(request: ShoppingRequest):
                 disconnected.append(ws)
         for ws in disconnected:
             active_connections.remove(ws)
-    
+
     report = await buyer_agent.process_request(request.request, callback=broadcast)
-    
-    return {
-        "session_id": report.session_id,
-        "request": report.user_request,
-        "budget": report.budget,
-        "total_spent": report.total_spent,
-        "budget_remaining": report.budget_remaining,
-        "total_saved": report.total_saved,
-        "orders": [
-            {
-                "merchant": o.merchant_name,
-                "items": o.items,
-                "amount": o.final_amount,
-                "discount": o.discount_applied,
-                "payment_status": o.payment_status,
-                "razorpay_order_id": o.razorpay_order_id,
-                "negotiation_rounds": o.negotiation_rounds,
-                "audit_trail": o.audit_trail,
-            }
-            for o in report.orders
-        ],
-        "metrics": buyer_agent.get_metrics(),
-        "failures": report.failures,
-    }
+    return build_shop_response(report)
 
 
 @app.get("/api/metrics")
@@ -156,6 +252,24 @@ async def get_audit_trail():
 async def get_payment_summary():
     """Get payment processing summary."""
     return buyer_agent.payment_client.get_payment_summary()
+
+
+@app.post("/api/payment/verify")
+async def verify_payment(payload: PaymentVerifyRequest):
+    """
+    Verify a Razorpay checkout.js payment signature. Frontend must call this
+    after checkout succeeds — never trust razorpay_payment_id on its own.
+    """
+    verified = buyer_agent.payment_client.verify_payment_signature(
+        payload.razorpay_order_id, payload.razorpay_payment_id, payload.razorpay_signature
+    )
+    if not verified:
+        raise HTTPException(status_code=400, detail="Payment signature verification failed")
+    return {
+        "verified": True,
+        "razorpay_order_id": payload.razorpay_order_id,
+        "razorpay_payment_id": payload.razorpay_payment_id,
+    }
 
 
 # ── WebSocket for live updates ──
@@ -182,17 +296,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 report = await buyer_agent.process_request(
                     message["request"], callback=ws_callback
                 )
-                
+
                 await websocket.send_text(json.dumps({
                     "event": "final_report",
-                    "report": {
-                        "session_id": report.session_id,
-                        "total_spent": report.total_spent,
-                        "budget_remaining": report.budget_remaining,
-                        "total_saved": report.total_saved,
-                        "orders_count": len(report.orders),
-                        "metrics": buyer_agent.get_metrics(),
-                    }
+                    "report": build_shop_response(report),
                 }))
                 
     except WebSocketDisconnect:
@@ -204,6 +311,10 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.get("/dashboard")
 async def dashboard():
     return FileResponse("dashboard/index.html")
+
+
+# Serve any static assets referenced by the dashboard (images, css, etc.)
+app.mount("/static", StaticFiles(directory="dashboard"), name="static")
 
 
 if __name__ == "__main__":

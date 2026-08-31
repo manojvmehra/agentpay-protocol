@@ -78,6 +78,12 @@ class Product:
     bulk_discount_rules: list = field(default_factory=list)
     # Example: [{"min_qty": 50, "discount_pct": 10}, {"min_qty": 100, "discount_pct": 15}]
     metadata: dict = field(default_factory=dict)
+    image_url: str = ""
+
+    def __post_init__(self):
+        if not self.image_url:
+            from urllib.parse import quote
+            self.image_url = f"https://via.placeholder.com/300x300?text={quote(self.name)}"
 
     def get_price_for_quantity(self, qty: int) -> float:
         """Calculate price per unit after applicable bulk discounts."""

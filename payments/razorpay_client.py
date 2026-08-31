@@ -192,6 +192,18 @@ class RazorpayPaymentClient:
             "recovery_rate": f"{(recovered/retried*100):.0f}%" if retried else "N/A",
         }
     
+    def verify_payment_signature(self, order_id: str, payment_id: str, signature: str) -> bool:
+        """Verify a checkout.js payment signature against key_secret. Never trust an unverified payment."""
+        try:
+            self.client.utility.verify_payment_signature({
+                "razorpay_order_id": order_id,
+                "razorpay_payment_id": payment_id,
+                "razorpay_signature": signature,
+            })
+            return True
+        except razorpay.errors.SignatureVerificationError:
+            return False
+
     def generate_payment_link(self, order_id: str, amount: float, merchant_name: str) -> str:
         """
         Generate a Razorpay checkout URL for the order.
