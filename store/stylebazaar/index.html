@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StyleBazaar — Fashion for Everyone</title>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #ffffff;
+    --surface: #fafafa;
+    --surface-2: #f4f2f3;
+    --border: #ececec;
+    --text: #282020;
+    --text-dim: #756e6e;
+    --text-dimmer: #a39c9c;
+    --accent: #ff4d6d;
+    --accent-dark: #e8365a;
+    --accent-tint: #fff0f3;
+    --gold: #c9a648;
+    --green: #1a9d5c;
+  }
+
+  html, body { height: 100%; }
+  body {
+    font-family: 'Poppins', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  button { font-family: inherit; cursor: pointer; }
+  a { text-decoration: none; color: inherit; }
+  ::-webkit-scrollbar { height: 8px; width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+  /* ══════════════ HEADER ══════════════ */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: #fff; border-bottom: 1px solid var(--border);
+    padding: 14px 24px; display: flex; align-items: center; gap: 18px;
+  }
+  .logo { display: flex; align-items: baseline; gap: 3px; font-weight: 800; font-size: 21px; flex-shrink: 0; }
+  .logo .style { color: var(--text); }
+  .logo .bazaar { color: var(--accent); }
+  .back-link {
+    font-size: 11.5px; color: var(--text-dimmer); border: 1px solid var(--border);
+    padding: 5px 10px; border-radius: 999px; flex-shrink: 0; transition: all .15s;
+  }
+  .back-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  .search-bar { flex: 1; max-width: 480px; position: relative; }
+  .search-bar input {
+    width: 100%; padding: 10px 14px 10px 38px; border-radius: 10px;
+    border: 1.5px solid var(--border); background: var(--surface); font-size: 13.5px; outline: none;
+    transition: border-color .2s;
+  }
+  .search-bar input:focus { border-color: var(--accent); background: #fff; }
+  .search-bar .icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-dimmer); font-size: 14px; }
+
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent-dark);
+    background: var(--accent-tint); padding: 5px 9px; border-radius: 6px; border: 1px solid var(--accent);
+    white-space: nowrap;
+  }
+
+  /* ══════════════ CATEGORY TABS ══════════════ */
+  .tabs-bar { display: flex; gap: 8px; padding: 16px 24px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 20px; border-radius: 999px; background: var(--surface); border: 1.5px solid var(--border);
+    color: var(--text-dim); font-size: 13px; font-weight: 600; transition: all .15s;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--accent); }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ══════════════ STYLIST / COMBO STRIP ══════════════ */
+  .stylist-strip { padding: 18px 24px 4px; }
+  .stylist-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .stylist-head .emoji { font-size: 18px; }
+  .stylist-head h2 { font-size: 15px; font-weight: 700; }
+  .stylist-head p { font-size: 12px; color: var(--text-dim); margin-left: 4px; }
+  .combo-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; }
+  .combo-card {
+    flex: 0 0 260px; background: linear-gradient(135deg, var(--accent-tint), #fff);
+    border: 1px solid var(--accent); border-radius: 14px; padding: 14px;
+  }
+  .combo-card .cname { font-weight: 700; font-size: 13.5px; margin-bottom: 6px; }
+  .combo-card .citems { font-size: 11.5px; color: var(--text-dim); line-height: 1.5; margin-bottom: 8px; }
+  .combo-card .cdiscount {
+    display: inline-block; font-size: 11px; font-weight: 700; color: #fff;
+    background: var(--accent); padding: 3px 10px; border-radius: 999px;
+  }
+
+  /* ══════════════ FILTER BAR ══════════════ */
+  .filter-bar {
+    display: flex; align-items: center; gap: 10px; padding: 16px 24px; flex-wrap: wrap;
+  }
+  .filter-bar select {
+    padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--border);
+    background: #fff; font-size: 12.5px; color: var(--text); outline: none;
+  }
+  .filter-bar select:focus { border-color: var(--accent); }
+  .result-count { font-size: 12.5px; color: var(--text-dim); margin-left: auto; }
+
+  /* ══════════════ PRODUCT GRID ══════════════ */
+  .grid-wrap { padding: 4px 24px 40px; }
+  .product-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;
+  }
+  .product-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    display: flex; flex-direction: column; transition: box-shadow .15s, transform .15s;
+  }
+  .product-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+  .product-img {
+    aspect-ratio: 3/4; width: 100%; position: relative;
+    background: linear-gradient(135deg, hsl(var(--hue,340) 70% 96%), hsl(calc(var(--hue,340) + 30) 60% 92%));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .product-img img { width: 100%; height: 100%; object-fit: cover; }
+  .img-fallback-text { display: none; font-size: 34px; font-weight: 800; color: rgba(0,0,0,.12); }
+  .product-img.img-fallback .img-fallback-text { display: flex; }
+  .discount-badge {
+    position: absolute; top: 8px; left: 8px; background: var(--green); color: #fff;
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 5px;
+  }
+  .product-body { padding: 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .product-type { font-size: 10px; color: var(--accent-dark); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+  .product-name { font-size: 13px; font-weight: 600; line-height: 1.35; min-height: 34px; }
+  .product-meta { font-size: 11px; color: var(--text-dim); }
+  .product-price-row { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
+  .product-price { font-size: 16px; font-weight: 800; }
+  .buy-now-btn {
+    margin-top: 8px; width: 100%; padding: 9px; border-radius: 8px; border: none;
+    background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 700; transition: background .15s;
+  }
+  .buy-now-btn:hover:not(:disabled) { background: var(--accent-dark); }
+  .buy-now-btn:disabled { opacity: .5; }
+
+  .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 28px; }
+  .page-btn {
+    background: #fff; border: 1.5px solid var(--border); color: var(--text);
+    padding: 8px 16px; border-radius: 8px; font-size: 13px; transition: all .15s;
+  }
+  .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .page-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .page-indicator { font-size: 13px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); grid-column: 1/-1; }
+
+  footer {
+    text-align: center; padding: 24px; color: var(--text-dimmer); font-size: 11.5px;
+    border-top: 1px solid var(--border);
+  }
+  footer a { color: var(--accent-dark); font-weight: 600; }
+
+  /* ══════════════ TOAST & CONFIRM MODAL ══════════════ */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #222; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 13px;
+    z-index: 600; opacity: 0; transition: all .25s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(20,10,15,0.55); z-index: 500;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px; width: min(380px, 100%); padding: 28px 24px 24px;
+    text-align: center; animation: popIn .2s ease;
+  }
+  @keyframes popIn { from { opacity:0; transform: scale(.96);} to {opacity:1; transform:scale(1);} }
+  .modal .check {
+    width: 56px; height: 56px; border-radius: 50%; background: var(--green); color: #fff;
+    font-size: 28px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;
+  }
+  .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .modal p { font-size: 12.5px; color: var(--text-dim); margin-bottom: 4px; word-break: break-all; }
+  .modal .close-btn {
+    margin-top: 16px; width: 100%; padding: 11px; border-radius: 9px; border: none;
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 13.5px;
+  }
+
+  @media (max-width: 600px) {
+    .search-bar { display: none; }
+    header { padding: 12px 16px; }
+    .tabs-bar, .filter-bar, .grid-wrap, .stylist-strip { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="style">Style</span><span class="bazaar">Bazaar</span></div>
+  <a class="back-link" href="/">← AgentPay Chat</a>
+  <div class="search-bar">
+    <span class="icon">⌕</span>
+    <input type="text" id="searchInput" placeholder="Search shirts, jeans, dresses, bags…">
+  </div>
+  <div class="header-right">
+    <span class="badge">RAZORPAY TEST MODE</span>
+  </div>
+</header>
+
+<div class="tabs-bar" id="tabsBar"></div>
+
+<div class="stylist-strip">
+  <div class="stylist-head">
+    <span class="emoji">💅</span>
+    <h2>Our Stylist Recommends</h2>
+    <p>curated outfit combos, bundled at a discount</p>
+  </div>
+  <div class="combo-scroll" id="comboScroll"></div>
+</div>
+
+<div class="filter-bar">
+  <select id="typeFilter"><option value="">All Types</option></select>
+  <select id="sizeFilter"><option value="">All Sizes</option></select>
+  <select id="colorFilter"><option value="">All Colors</option></select>
+  <select id="sortSelect">
+    <option value="">Sort: Relevance</option>
+    <option value="price_asc">Price: Low to High</option>
+    <option value="price_desc">Price: High to Low</option>
+  </select>
+  <div class="result-count" id="resultCount"></div>
+</div>
+
+<div class="grid-wrap">
+  <div class="product-grid" id="productGrid"></div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<footer>
+  StyleBazaar is Store 1 on the <a href="/">AgentPay Protocol</a> multi-store network — the AI buyer agent can discover and negotiate with this store too.
+</footer>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <div class="check">✓</div>
+    <h3>Order Placed!</h3>
+    <p id="confirmDetail"></p>
+    <p id="confirmPid"></p>
+    <button class="close-btn" onclick="closeConfirm()">Continue Shopping</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = window.location.origin;
+let currentPage = 1, currentCategory = '', currentSort = '', currentSearch = '';
+let currentType = '', currentSize = '', currentColor = '';
+let razorpayKeyId = null;
+let searchDebounce;
+
+const CATEGORIES = ['All', 'Men', 'Women', 'Accessories'];
+
+async function init() {
+  renderTabs();
+  await loadConfig();
+  loadProducts();
+
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => { currentSearch = e.target.value.trim(); currentPage = 1; loadProducts(); }, 350);
+  });
+  document.getElementById('typeFilter').addEventListener('change', (e) => { currentType = e.target.value; currentPage = 1; loadProducts(); });
+  document.getElementById('sizeFilter').addEventListener('change', (e) => { currentSize = e.target.value; currentPage = 1; loadProducts(); });
+  document.getElementById('colorFilter').addEventListener('change', (e) => { currentColor = e.target.value; currentPage = 1; loadProducts(); });
+  document.getElementById('sortSelect').addEventListener('change', (e) => { currentSort = e.target.value; currentPage = 1; loadProducts(); });
+}
+
+async function loadConfig() {
+  try {
+    const res = await fetch(`${API}/api/config`);
+    const data = await res.json();
+    razorpayKeyId = data.key_id;
+  } catch (e) { /* Pay button will show an error if this never loads */ }
+}
+
+function renderTabs() {
+  const bar = document.getElementById('tabsBar');
+  bar.innerHTML = CATEGORIES.map((c, i) => `
+    <button class="tab ${i === 0 ? 'active' : ''}" data-cat="${c === 'All' ? '' : c.toLowerCase()}" onclick="selectCategory(this)">${c}</button>
+  `).join('');
+}
+
+function selectCategory(el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === el));
+  currentCategory = el.dataset.cat;
+  currentType = ''; currentSize = ''; currentColor = '';
+  document.getElementById('typeFilter').value = '';
+  document.getElementById('sizeFilter').value = '';
+  document.getElementById('colorFilter').value = '';
+  currentPage = 1;
+  loadProducts();
+}
+
+function hueFor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return h;
+}
+
+async function loadProducts() {
+  const grid = document.getElementById('productGrid');
+  grid.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  const params = new URLSearchParams({ page: currentPage, limit: 24 });
+  if (currentCategory) params.set('category', currentCategory);
+  if (currentType) params.set('type', currentType);
+  if (currentSize) params.set('size', currentSize);
+  if (currentColor) params.set('color', currentColor);
+  if (currentSearch) params.set('search', currentSearch);
+  if (currentSort) params.set('sort', currentSort);
+
+  try {
+    const res = await fetch(`${API}/store/stylebazaar/api/products?${params}`);
+    const data = await res.json();
+    renderFilterOptions(data.products, data);
+    renderProducts(data.products);
+    renderPagination(data.page, data.pages);
+    renderCombos(data.combo_deals);
+    document.getElementById('resultCount').textContent = `${data.total} products`;
+  } catch (e) {
+    grid.innerHTML = '<div class="empty-state">Failed to load products. Is the server running?</div>';
+  }
+}
+
+let comboRendered = false;
+function renderCombos(combos) {
+  if (comboRendered || !combos || !combos.length) return;
+  comboRendered = true;
+  document.getElementById('comboScroll').innerHTML = combos.map(c => `
+    <div class="combo-card">
+      <div class="cname">${escapeHtml(c.name)}</div>
+      <div class="citems">${c.product_ids.length} pieces styled together</div>
+      <span class="cdiscount">${c.combo_discount_pct}% OFF as a set</span>
+    </div>
+  `).join('');
+}
+
+let filterOptionsBuilt = { type: new Set(), size: new Set(), color: new Set() };
+function renderFilterOptions(products) {
+  // Build filter option lists incrementally from whatever we've seen so we
+  // don't need a separate metadata endpoint — good enough for a 282-SKU catalog.
+  let changed = false;
+  products.forEach(p => {
+    if (p.type && !filterOptionsBuilt.type.has(p.type)) { filterOptionsBuilt.type.add(p.type); changed = true; }
+    if (p.size && !filterOptionsBuilt.size.has(p.size)) { filterOptionsBuilt.size.add(p.size); changed = true; }
+    if (p.color && !filterOptionsBuilt.color.has(p.color)) { filterOptionsBuilt.color.add(p.color); changed = true; }
+  });
+  if (!changed) return;
+  fillSelect('typeFilter', filterOptionsBuilt.type, currentType, s => s.charAt(0).toUpperCase() + s.slice(1));
+  fillSelect('sizeFilter', filterOptionsBuilt.size, currentSize);
+  fillSelect('colorFilter', filterOptionsBuilt.color, currentColor);
+}
+
+function fillSelect(id, valuesSet, current, labelFn) {
+  const el = document.getElementById(id);
+  const values = Array.from(valuesSet).sort();
+  const placeholder = el.options[0];
+  el.innerHTML = '';
+  el.appendChild(placeholder);
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = labelFn ? labelFn(v) : v;
+    el.appendChild(opt);
+  });
+  el.value = current;
+}
+
+function renderProducts(products) {
+  const grid = document.getElementById('productGrid');
+  if (!products.length) {
+    grid.innerHTML = '<div class="empty-state">No products match your filters.</div>';
+    return;
+  }
+  grid.innerHTML = products.map(p => {
+    const maxDiscount = (p.bulk_discounts || []).reduce((m, r) => Math.max(m, r.discount_pct), 0);
+    const escName = p.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const metaBits = [p.size, p.color].filter(Boolean).join(' · ');
+    return `
+    <div class="product-card">
+      <div class="product-img" style="--hue:${hueFor(p.name)}">
+        <img src="${p.image_url}" alt="${escName}" loading="lazy"
+             onerror="this.style.display='none'; this.parentElement.classList.add('img-fallback')">
+        <span class="img-fallback-text">${p.name.charAt(0)}</span>
+        ${maxDiscount ? `<span class="discount-badge">${maxDiscount}% off 20+</span>` : ''}
+      </div>
+      <div class="product-body">
+        <div class="product-type">${escapeHtml(p.type || p.category)}</div>
+        <div class="product-name">${escapeHtml(p.name)}</div>
+        ${metaBits ? `<div class="product-meta">${escapeHtml(metaBits)}</div>` : ''}
+        <div class="product-price-row">
+          <span class="product-price">₹${p.base_price.toLocaleString()}</span>
+        </div>
+        <button class="buy-now-btn" onclick="buyNow('${p.id}', this)">Buy Now</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPagination(page, pages) {
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <button class="page-btn" ${page <= 1 ? 'disabled' : ''} onclick="goPage(${page - 1})">← Prev</button>
+    <span class="page-indicator">Page ${page} / ${pages}</span>
+    <button class="page-btn" ${page >= pages ? 'disabled' : ''} onclick="goPage(${page + 1})">Next →</button>
+  `;
+}
+
+function goPage(p) {
+  currentPage = p;
+  loadProducts();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML;
+}
+
+/* ═══════════════════════ BUY NOW → RAZORPAY ═══════════════════════ */
+async function buyNow(productId, btnEl) {
+  if (!razorpayKeyId) { showToast("Payment isn't ready yet — try again in a second."); return; }
+  btnEl.disabled = true;
+  btnEl.textContent = 'Placing order…';
+
+  try {
+    const res = await fetch(`${API}/store/stylebazaar/api/buy`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: productId, quantity: 1 }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Order failed');
+    const order = await res.json();
+    openCheckout(order, btnEl);
+  } catch (e) {
+    showToast(`Couldn't place order: ${e.message}`);
+    btnEl.disabled = false;
+    btnEl.textContent = 'Buy Now';
+  }
+}
+
+function openCheckout(order, btnEl) {
+  const options = {
+    key: razorpayKeyId,
+    amount: order.checkout.amount,
+    currency: order.checkout.currency,
+    order_id: order.checkout.order_id,
+    name: 'StyleBazaar',
+    description: `${order.name} × ${order.quantity}`,
+    prefill: { email: 'test@agentpay.com' },
+    theme: { color: '#ff4d6d' },
+    handler: async function (response) {
+      try {
+        const verifyRes = await fetch(`${API}/api/payment/verify`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          }),
+        });
+        const verifyData = await verifyRes.json();
+        showConfirm(order, verifyRes.ok && verifyData.verified ? response.razorpay_payment_id : null);
+      } catch (e) {
+        showConfirm(order, null);
+      }
+      btnEl.textContent = 'Bought ✓';
+    },
+    modal: {
+      ondismiss: function () {
+        btnEl.disabled = false;
+        btnEl.textContent = 'Buy Now';
+      }
+    }
+  };
+  const rzp = new Razorpay(options);
+  rzp.on('payment.failed', function () {
+    showToast('Payment failed — please try again.');
+    btnEl.disabled = false;
+    btnEl.textContent = 'Buy Now';
+  });
+  rzp.open();
+}
+
+function showConfirm(order, paymentId) {
+  document.getElementById('confirmDetail').textContent = `${order.name} × ${order.quantity} — ₹${order.total.toLocaleString()}`;
+  document.getElementById('confirmPid').textContent = paymentId ? `Payment ID: ${paymentId}` : 'Payment recorded — verification pending.';
+  document.getElementById('confirmModal').classList.add('open');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmModal').classList.remove('open');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+init();
+</script>
+</body>
+</html>
