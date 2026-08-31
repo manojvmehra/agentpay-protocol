@@ -108,7 +108,7 @@ class BuyerAgent:
             merchant_catalogs[mid] = {
                 "name": merchant.info.name,
                 "catalog": catalog_msg.payload,
-                "summary": merchant.get_catalog_summary(categories=requested_categories, limit=12),
+                "summary": merchant.get_catalog_summary(categories=requested_categories, limit=15),
                 "relevant": not wanted_categories or any(c.lower() in wanted_categories for c in merchant.info.categories),
             }
             report.merchants_contacted += 1
@@ -153,7 +153,7 @@ class BuyerAgent:
                 "merchant": merchant_name,
             })
             
-            neg_result = await self._negotiate_with_merchant(
+            neg_result = await self.negotiate_with_merchant(
                 merchant, order_plan, parsed.get("budget", 0), notify
             )
             negotiations_results[merchant_id] = neg_result
@@ -284,7 +284,7 @@ Available Merchants:
             self._log("error", f"LLM planning failed: {e}")
             return {"error": str(e)}
     
-    async def _negotiate_with_merchant(self, merchant: MerchantAgent, order_plan: dict, 
+    async def negotiate_with_merchant(self, merchant: MerchantAgent, order_plan: dict, 
                                         budget: float, notify) -> dict:
         """Run negotiation rounds with a merchant."""
         items = order_plan.get("items", [])

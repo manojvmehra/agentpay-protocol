@@ -8,6 +8,15 @@ and serves the real-time dashboard.
 import asyncio
 import json
 import math
+import sys
+
+# Windows consoles default to a cp1252 stdout that can't encode ₹ and other
+# non-ASCII characters our messages/logs use — reconfigure to UTF-8 so print()
+# and logging never crash on them.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
@@ -16,6 +25,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from agents.buyer import BuyerAgent
+from agents.conversation import ConversationAgent
 from merchants.festkart import create_festkart
 from merchants.printboss import create_printboss
 from merchants.catercloud import create_catercloud
@@ -55,6 +65,10 @@ buyer_agent.register_merchant(techbazaar)
 buyer_agent.register_merchant(giftgenie)
 buyer_agent.register_merchant(sportstar)
 
+# Conversational chat agent (Step 1: chat-first UI) — reuses buyer_agent's
+# merchants, negotiation protocol, and Razorpay payment client.
+conversation_agent = ConversationAgent(buyer_agent)
+
 # Store active WebSocket connections for live updates
 active_connections: list[WebSocket] = []
 
@@ -74,6 +88,11 @@ class PaymentVerifyRequest(BaseModel):
     razorpay_order_id: str
     razorpay_payment_id: str
     razorpay_signature: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    session_id: Optional[str] = None
 
 
 # ── API Endpoints ──
@@ -252,6 +271,26 @@ async def get_audit_trail():
 async def get_payment_summary():
     """Get payment processing summary."""
     return buyer_agent.payment_client.get_payment_summary()
+
+
+@app.post("/api/chat")
+async def chat(payload: ChatRequest):
+    """
+    Send a message to the conversational buyer agent and get its response(s).
+    Returns: { session_id, messages: [{type, content, sender}] }
+    """
+    session = conversation_agent.get_or_create_session(payload.session_id)
+    messages = await conversation_agent.handle_message(session, payload.message)
+    return {"session_id": session.session_id, "messages": messages}
+
+
+@app.get("/api/chat/{session_id}")
+async def get_chat_history(session_id: str):
+    """Return the full message history for a chat session."""
+    session = conversation_agent.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    return {"session_id": session.session_id, "messages": session.messages}
 
 
 @app.post("/api/payment/verify")

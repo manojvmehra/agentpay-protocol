@@ -349,8 +349,16 @@ class MerchantAgent:
 
         With hundreds of products per merchant, dumping the full catalog into
         an LLM prompt blows past token/rate limits. So this filters to the
-        requested categories (if given) and caps the number of lines,
-        cheapest-first, noting how many were omitted.
+        requested categories (if given) and caps the number of lines shown.
+
+        Products are generated in color/size/flavor variants (e.g. 6 colors of
+        the same t-shirt), which used to mean a flat cheapest-first cap could
+        get entirely consumed by every variant of one or two cheap product
+        lines — starving out whole product types (like t-shirts) from the
+        LLM's view even though dozens of SKUs existed. So we first collapse
+        each product line down to its cheapest variant before capping, giving
+        the LLM breadth across distinct products rather than color depth of a
+        few.
         """
         lines = [f"=== {self.info.name} ===", f"{self.info.description}", ""]
         lines.append("Products:")
@@ -362,19 +370,33 @@ class MerchantAgent:
             # Fall back to the full catalog if none of the requested categories match
             products = filtered if filtered else products
 
-        products.sort(key=lambda p: p.base_price)
-        shown = products[:limit]
-        remaining = len(products) - len(shown)
+        def base_name(p):
+            return p.name.split(" - ")[0]
+
+        variant_counts: dict[str, int] = {}
+        cheapest_by_base: dict[str, "Product"] = {}
+        for p in products:
+            key = base_name(p)
+            variant_counts[key] = variant_counts.get(key, 0) + 1
+            if key not in cheapest_by_base or p.base_price < cheapest_by_base[key].base_price:
+                cheapest_by_base[key] = p
+
+        deduped = list(cheapest_by_base.values())
+        deduped.sort(key=lambda p: p.base_price)
+        shown = deduped[:limit]
+        remaining = len(deduped) - len(shown)
 
         for p in shown:
             discount_info = ""
             if p.bulk_discount_rules:
                 discounts = [f"{r['min_qty']}+ units: {r['discount_pct']}% off" for r in p.bulk_discount_rules]
                 discount_info = f" | Bulk discounts: {', '.join(discounts)}"
-            lines.append(f"  - {p.name} (ID: {p.id}): ₹{p.base_price}/{p.unit}{discount_info}")
+            variants = variant_counts[base_name(p)]
+            variant_note = f" | {variants} color/variant options available" if variants > 1 else ""
+            lines.append(f"  - {p.name} (ID: {p.id}): ₹{p.base_price}/{p.unit}{discount_info}{variant_note}")
 
         if remaining > 0:
-            lines.append(f"  ...and {remaining} more product(s) available in this store.")
+            lines.append(f"  ...and {remaining} more distinct product(s) available in this store.")
 
         if self.combo_deals:
             lines.append("\nCombo Deals:")
