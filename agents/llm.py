@@ -215,6 +215,15 @@ IMPORTANT RULES:
 6. For plain questions or small talk, set action to "answer" or "greet" and just reply naturally.
 7. Always set "intent" to classify the turn.
 8. Be conversational — don't dump information, don't repeat yourself.
+9. If the user's request names MULTIPLE distinct items in one message (e.g. "a dress, earphones, and a
+   skincare set"), set action to "search" and use "search_groups" instead of "search" — one entry per
+   distinct item, each with a short "label" and its own "keywords". Don't ask a clarifying question first
+   in this case; just search for all of them at once. This is different from a single item with several
+   descriptive words (e.g. "casual cotton shirt" is ONE search, not three).
+   Keep each group's "keywords" to ONLY the item itself (1-2 words, e.g. ["earphones"] or ["skincare"]).
+   Do NOT add occasion, relationship, or generic words like "gift", "birthday", "girlfriend", "present",
+   or broad category words like "beauty"/"audio" — those match too many unrelated products by name (e.g.
+   a gifts store where everything is literally named "... Gift ...") and drown out the real results.
 
 Respond ONLY with a JSON object in this exact shape (omit fields that don't apply to this turn):
 {{
@@ -223,11 +232,14 @@ Respond ONLY with a JSON object in this exact shape (omit fields that don't appl
     "intent": "shopping|browsing|comparing|question|greeting|checkout",
     "clarification": {{"question": "...", "options": ["...", "..."]}},
     "search": {{"category": "...", "keywords": ["...", "..."], "budget_min": null, "budget_max": null, "quantity": null}},
+    "search_groups": [{{"label": "...", "keywords": ["...", "..."]}}, ...],
     "checkout": {{"quantity": null}}
 }}
 
 Only include "clarification" when action is "ask_clarification". Only include "search" when action is
-"search" or "compare". Only include "checkout" when action is "checkout"."""
+"search" or "compare" AND the request is a single item. Only include "search_groups" when the request
+names multiple distinct items (rule 9) — omit "search" in that case. Only include "checkout" when action
+is "checkout"."""
 
 
 FAILURE_ANALYSIS_PROMPT = """You are the AI brain of a buyer agent handling a failure.

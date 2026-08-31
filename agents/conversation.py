@@ -108,12 +108,20 @@ class ConversationAgent:
         # Treat category as loose search terms too (split into words), not an exact-phrase
         # filter — the LLM often sends multi-word phrases like "casual shirt" that will never
         # appear verbatim in catalog text even when the product is a perfect match ("t-shirt").
+        #
+        # Generic bundling words ("skincare SET", "gaming KIT") are excluded from the term set:
+        # they tend to appear literally in unrelated product names (e.g. "Sticky Notes Set",
+        # "Cable Clips (Set of 10)"), and since those become NAME matches they'd otherwise outrank
+        # — and, via the name-match-only filter below, completely bury — the actually relevant
+        # products that only match through their category (e.g. GlowMart's skincare items, none of
+        # which have the literal word "skincare" in their own product name).
+        generic_words = {"set", "sets", "kit", "kits", "pack", "packs", "bundle", "bundles", "combo", "combos"}
         terms = set()
         if category:
-            terms.update(w for w in category.lower().split() if len(w) > 2)
+            terms.update(w for w in category.lower().split() if len(w) > 2 and w not in generic_words)
         for kw in (keywords or []):
             if kw:
-                terms.update(w for w in kw.lower().split() if len(w) > 1)
+                terms.update(w for w in kw.lower().split() if len(w) > 1 and w not in generic_words)
 
         # Word-boundary matching — a plain substring check would let a short term like "mat"
         # false-match inside unrelated words like "Matte" (a finish/color variant name).
@@ -318,7 +326,35 @@ class ConversationAgent:
             else:
                 action = "search"  # LLM said "ask" but gave nothing to ask — fall through to search
 
-        if action in ("search", "compare") or (action == "ask_clarification" and session.clarification_count >= MAX_CLARIFICATIONS):
+        search_groups = decision.get("search_groups")
+        if action == "search" and search_groups:
+            # Multiple distinct items in one request (e.g. "a dress, earphones, and a skincare
+            # set") — run one search per item so each can surface from whichever store actually
+            # carries it, instead of OR-ing all their keywords into a single unfocused search.
+            session.clarification_count = 0
+            for group in search_groups:
+                label = (group.get("label") or "").strip()
+                raw_keywords = group.get("keywords") or []
+                # Use only the label plus the first keyword. The LLM tends to pad each group's
+                # keyword list with generic occasion/context words ("gift", "birthday",
+                # "girlfriend") that are too broad — they name-match cheap unrelated products
+                # (e.g. everything in a "gifts" store literally has "gift" in the name) and win
+                # the price tiebreak against the actually-relevant, pricier results.
+                focused_keywords = ([label] if label else []) + raw_keywords[:1]
+                products = self._search_products(keywords=focused_keywords, limit=3)
+                if products:
+                    session.last_shown = products
+                    if label:
+                        out.append(self._emit(session, "text", f"**{label}:**"))
+                    cards = [self._product_card(p, m) for p, m in products]
+                    out.append(self._emit(session, "product_cards", cards))
+                else:
+                    out.append(self._emit(
+                        session, "text",
+                        f"Couldn't find a good match for {label or 'that item'} right now.",
+                    ))
+
+        elif action in ("search", "compare") or (action == "ask_clarification" and session.clarification_count >= MAX_CLARIFICATIONS):
             session.clarification_count = 0
             search = decision.get("search") or {}
             if search.get("quantity"):

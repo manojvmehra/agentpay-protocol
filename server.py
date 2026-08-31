@@ -33,6 +33,8 @@ from merchants.techbazaar import create_techbazaar
 from merchants.giftgenie import create_giftgenie
 from merchants.sportstar import create_sportstar
 from merchants.stylebazaar import create_stylebazaar
+from merchants.gadgetstore import create_gadgetstore
+from merchants.glowmart import create_glowmart
 from config import HOST, PORT, RAZORPAY_KEY_ID
 
 app = FastAPI(
@@ -59,6 +61,8 @@ techbazaar = create_techbazaar()
 giftgenie = create_giftgenie()
 sportstar = create_sportstar()
 stylebazaar = create_stylebazaar()
+gadgetstore = create_gadgetstore()
+glowmart = create_glowmart()
 
 buyer_agent.register_merchant(festkart)
 buyer_agent.register_merchant(printboss)
@@ -67,6 +71,8 @@ buyer_agent.register_merchant(techbazaar)
 buyer_agent.register_merchant(giftgenie)
 buyer_agent.register_merchant(sportstar)
 buyer_agent.register_merchant(stylebazaar)
+buyer_agent.register_merchant(gadgetstore)
+buyer_agent.register_merchant(glowmart)
 
 # Conversational chat agent (Step 1: chat-first UI) — reuses buyer_agent's
 # merchants, negotiation protocol, and Razorpay payment client.
@@ -348,122 +354,124 @@ async def websocket_endpoint(websocket: WebSocket):
         active_connections.remove(websocket)
 
 
-# ── StyleBazaar mini-site (Store 1) ──
-# A standalone fashion storefront at /store/stylebazaar. It shares the same
-# underlying MerchantAgent (and hence the same negotiation protocol and
-# payment client) that the main buyer agent already discovers and
-# transacts with — this is genuinely one merchant, just with its own
-# independent front door and Buy Now API in addition to the chat flow.
+# ── Branded store mini-sites ──
+# Standalone storefronts at /store/<slug>. Each shares the same underlying
+# MerchantAgent (and hence the same negotiation protocol and payment
+# client) that the main buyer agent already discovers and transacts with —
+# these are genuinely one merchant each, just with their own independent
+# front door and Buy Now API in addition to the chat flow.
 
 class StoreBuyRequest(BaseModel):
     product_id: str
     quantity: int = 1
 
 
-@app.get("/store/stylebazaar")
-async def stylebazaar_home():
-    return FileResponse("store/stylebazaar/index.html")
+def register_store_routes(slug: str, merchant):
+    """Wire up GET /store/<slug>, its scoped products API, and its Buy Now API."""
+
+    @app.get(f"/store/{slug}", name=f"{slug}_home")
+    async def store_home():
+        return FileResponse(f"store/{slug}/index.html")
+
+    @app.get(f"/store/{slug}/api/products", name=f"{slug}_products")
+    async def store_products(
+        page: int = Query(1, ge=1),
+        limit: int = Query(24, ge=1, le=100),
+        category: Optional[str] = None,
+        type: Optional[str] = None,
+        size: Optional[str] = None,
+        color: Optional[str] = None,
+        search: Optional[str] = None,
+        sort: Optional[str] = None,
+    ):
+        """Paginated, filterable product listing scoped to just this store."""
+        items = []
+        for p in merchant.products.values():
+            items.append({
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "category": p.category,
+                "type": p.metadata.get("type"),
+                "size": p.metadata.get("size"),
+                "color": p.metadata.get("color"),
+                "base_price": p.base_price,
+                "unit": p.unit,
+                "min_order": p.min_order,
+                "in_stock": p.in_stock,
+                "bulk_discounts": p.bulk_discount_rules,
+                "image_url": p.image_url,
+            })
+
+        if category:
+            items = [i for i in items if i["category"] == category.lower()]
+        if type:
+            items = [i for i in items if i["type"] == type.lower()]
+        if size:
+            items = [i for i in items if i["size"] == size.upper()]
+        if color:
+            items = [i for i in items if (i["color"] or "").lower() == color.lower()]
+        if search:
+            q = search.lower()
+            items = [i for i in items if q in i["name"].lower() or q in i["description"].lower()]
+
+        if sort == "price_asc":
+            items.sort(key=lambda i: i["base_price"])
+        elif sort == "price_desc":
+            items.sort(key=lambda i: i["base_price"], reverse=True)
+
+        total = len(items)
+        pages = max(1, math.ceil(total / limit))
+        page = min(page, pages)
+        start = (page - 1) * limit
+        page_items = items[start:start + limit]
+
+        return {
+            "products": page_items,
+            "total": total,
+            "page": page,
+            "pages": pages,
+            "combo_deals": merchant.combo_deals,
+        }
+
+    @app.post(f"/store/{slug}/api/buy", name=f"{slug}_buy")
+    async def store_buy(payload: StoreBuyRequest):
+        """Buy Now: creates a real Razorpay order for one product from this store."""
+        product = merchant.products.get(payload.product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        quantity = max(payload.quantity, product.min_order)
+        amount = product.get_total_for_quantity(quantity)
+        items_summary = f"{product.name} x{quantity}"
+
+        payment_result = await buyer_agent.payment_client.create_order_with_retry(
+            amount, merchant.info.name, items_summary
+        )
+        if not payment_result.success:
+            raise HTTPException(status_code=502, detail=f"Could not create payment order: {payment_result.error}")
+
+        return {
+            "product_id": product.id,
+            "name": product.name,
+            "quantity": quantity,
+            "unit_price": round(amount / quantity, 2),
+            "total": amount,
+            "merchant": merchant.info.name,
+            "checkout": {
+                "order_id": payment_result.order_id,
+                "amount": int(round(amount * 100)),
+                "currency": "INR",
+            },
+        }
+
+    # Serve any static assets referenced by this store's page
+    app.mount(f"/store/{slug}/static", StaticFiles(directory=f"store/{slug}"), name=f"{slug}_static")
 
 
-@app.get("/store/stylebazaar/api/products")
-async def stylebazaar_products(
-    page: int = Query(1, ge=1),
-    limit: int = Query(24, ge=1, le=100),
-    category: Optional[str] = None,
-    type: Optional[str] = None,
-    size: Optional[str] = None,
-    color: Optional[str] = None,
-    search: Optional[str] = None,
-    sort: Optional[str] = None,
-):
-    """Paginated, filterable product listing scoped to just StyleBazaar."""
-    items = []
-    for p in stylebazaar.products.values():
-        items.append({
-            "id": p.id,
-            "name": p.name,
-            "description": p.description,
-            "category": p.category,
-            "type": p.metadata.get("type"),
-            "size": p.metadata.get("size"),
-            "color": p.metadata.get("color"),
-            "base_price": p.base_price,
-            "unit": p.unit,
-            "min_order": p.min_order,
-            "in_stock": p.in_stock,
-            "bulk_discounts": p.bulk_discount_rules,
-            "image_url": p.image_url,
-        })
-
-    if category:
-        items = [i for i in items if i["category"] == category.lower()]
-    if type:
-        items = [i for i in items if i["type"] == type.lower()]
-    if size:
-        items = [i for i in items if i["size"] == size.upper()]
-    if color:
-        items = [i for i in items if (i["color"] or "").lower() == color.lower()]
-    if search:
-        q = search.lower()
-        items = [i for i in items if q in i["name"].lower() or q in i["description"].lower()]
-
-    if sort == "price_asc":
-        items.sort(key=lambda i: i["base_price"])
-    elif sort == "price_desc":
-        items.sort(key=lambda i: i["base_price"], reverse=True)
-
-    total = len(items)
-    pages = max(1, math.ceil(total / limit))
-    page = min(page, pages)
-    start = (page - 1) * limit
-    page_items = items[start:start + limit]
-
-    return {
-        "products": page_items,
-        "total": total,
-        "page": page,
-        "pages": pages,
-        "combo_deals": stylebazaar.combo_deals,
-    }
-
-
-@app.post("/store/stylebazaar/api/buy")
-async def stylebazaar_buy(payload: StoreBuyRequest):
-    """
-    Buy Now: creates a real Razorpay order for one StyleBazaar product.
-    The main buyer agent can call this too — same store, same order flow.
-    """
-    product = stylebazaar.products.get(payload.product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    quantity = max(payload.quantity, product.min_order)
-    amount = product.get_total_for_quantity(quantity)
-    items_summary = f"{product.name} x{quantity}"
-
-    payment_result = await buyer_agent.payment_client.create_order_with_retry(
-        amount, stylebazaar.info.name, items_summary
-    )
-    if not payment_result.success:
-        raise HTTPException(status_code=502, detail=f"Could not create payment order: {payment_result.error}")
-
-    return {
-        "product_id": product.id,
-        "name": product.name,
-        "quantity": quantity,
-        "unit_price": round(amount / quantity, 2),
-        "total": amount,
-        "merchant": stylebazaar.info.name,
-        "checkout": {
-            "order_id": payment_result.order_id,
-            "amount": int(round(amount * 100)),
-            "currency": "INR",
-        },
-    }
-
-
-# Serve any static assets referenced by the StyleBazaar storefront
-app.mount("/store/stylebazaar/static", StaticFiles(directory="store/stylebazaar"), name="stylebazaar_static")
+register_store_routes("stylebazaar", stylebazaar)
+register_store_routes("gadgetstore", gadgetstore)
+register_store_routes("glowmart", glowmart)
 
 
 # ── Serve dashboard ──
