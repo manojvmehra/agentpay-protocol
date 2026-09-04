@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GadgetStore — Online Electronics &amp; Gadgets Shopping</title>
+<link rel="icon" type="image/svg+xml" href="/store/gadgetstore/static/hermes-logo.svg">
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap');
@@ -58,6 +59,7 @@
   .cart-count { background: var(--orange); color: #111; font-weight: 800; font-size: 12px; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
   .back-link { font-size: 10.5px; color: #ccc; border: 1px solid #445; padding: 4px 9px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
   .back-link:hover { border-color: var(--orange); color: var(--orange); }
+  .back-link-logo { width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; }
 
   .header-nav { background: var(--header-2); color: #fff; display: flex; align-items: center; gap: 18px; padding: 8px 18px; font-size: 12.5px; overflow-x: auto; }
   .header-nav a { white-space: nowrap; padding: 2px 0; border: 1px solid transparent; cursor: pointer; }
@@ -111,6 +113,11 @@
   .product-img-wrap { aspect-ratio: 1/1; width: 100%; cursor: pointer; overflow: hidden; border-radius: 4px; background: var(--surface); margin-bottom: 10px; }
   .product-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
   .product-card:hover .product-img-wrap img { transform: scale(1.05); }
+  .product-visual {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--header-2), var(--header));
+  }
+  .product-visual .pv-icon { font-size: 44px; filter: drop-shadow(0 3px 8px rgba(0,0,0,.3)); }
   .product-title { font-size: 12.5px; color: var(--text); cursor: pointer; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 35px; }
   .product-title:hover { color: var(--link); }
   .product-rating-row { display: flex; align-items: center; gap: 5px; margin-top: 5px; font-size: 12px; }
@@ -153,6 +160,7 @@
   .pdp-close { position: absolute; top: 14px; right: 14px; background: #fff; border: 1px solid var(--border); width: 30px; height: 30px; border-radius: 50%; font-size: 15px; z-index: 2; }
   .pdp-img { background: var(--surface); aspect-ratio: 1/1; }
   .pdp-img img { width: 100%; height: 100%; object-fit: cover; }
+  .pdp-img .pv-icon { font-size: 72px; }
   .pdp-body { padding: 26px 26px 26px 20px; }
   .pdp-title { font-size: 17px; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
   .pdp-rating { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; margin-bottom: 12px; }
@@ -175,6 +183,8 @@
   .cross-sell-row { display: flex; gap: 10px; overflow-x: auto; }
   .cross-sell-card { flex: 0 0 100px; cursor: pointer; }
   .cross-sell-card img { width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); }
+  .cross-sell-card .product-visual { width: 100px; height: 100px; border-radius: 4px; border: 1px solid var(--border); }
+  .cross-sell-card .pv-icon { font-size: 30px; }
   .cross-sell-card .cs-price { font-size: 11.5px; font-weight: 700; margin-top: 4px; }
 
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #232f3e; color: #fff; padding: 12px 22px; border-radius: 4px; font-size: 13px; z-index: 700; opacity: 0; transition: all .25s; pointer-events: none; }
@@ -208,7 +218,7 @@
       <button>⌕</button>
     </div>
     <div class="header-icons">
-      <a class="back-link" href="/">← Hermes Chat</a>
+      <a class="back-link" href="/"><img class="back-link-logo" src="/store/gadgetstore/static/hermes-logo.svg" alt=""> Hermes Chat</a>
       <div class="header-icon"><span>Hello, sign in</span><b>Returns &amp; Orders</b></div>
       <div class="header-icon cart-icon-row" onclick="showToast('Cart — items are placed via Buy Now, one order at a time.')">
         <span class="cart-count" id="cartCount">0</span><b>Cart</b>
@@ -285,7 +295,7 @@
 <div class="modal-overlay" id="pdpModal">
   <div class="pdp-modal">
     <button class="pdp-close" onclick="closePdp()">✕</button>
-    <div class="pdp-img"><img id="pdpImg" src="" alt=""></div>
+    <div class="pdp-img"><div id="pdpImg" class="product-visual"></div></div>
     <div class="pdp-body">
       <div class="pdp-title" id="pdpTitle"></div>
       <div class="pdp-rating" id="pdpRating"></div>
@@ -323,8 +333,26 @@
 <script>
 const API = window.location.origin;
 const STORE_SLUG = 'gadgetstore';
-const IMG_RANGE_START = 301, IMG_RANGE_SIZE = 300;
 const BADGES = ['deal', 'bestseller', null, null, null];
+
+// Category-appropriate icon instead of a random stock photo.
+const TYPE_ICONS = {
+  'phone-case': '📱', 'power-bank': '🔋', 'screen-protector': '🛡️', charging: '🔌',
+  'phone-mount': '📌', 'phone-grip': '📱', earphones: '🎧', earbuds: '🎧', neckband: '🎧',
+  speaker: '🔊', keyboard: '⌨️', mouse: '🖱️', monitor: '🖥️', 'usb-hub': '🔌',
+  'laptop-stand': '💻', webcam: '📷', 'cable-organizer': '🔌', storage: '💾',
+  'smart-bulb': '💡', 'smart-plug': '🔌', 'smart-speaker': '🔊', 'security-camera': '📹',
+  'smart-doorbell': '🔔', 'led-strip': '💡', 'smart-switch': '🔘', 'smart-climate': '🌡️',
+  'smart-sensor': '📡', 'action-camera': '📷', tripod: '📷', 'ring-light': '💡',
+  'camera-bag': '👜', 'selfie-stick': '🤳', gimbal: '📷', 'memory-card': '💾',
+  'camera-accessory': '📷', 'gaming-mouse': '🖱️', 'gaming-keyboard': '⌨️',
+  'gaming-headset': '🎧', controller: '🎮', 'mouse-pad': '🖱️', 'gaming-chair': '🪑',
+};
+const CATEGORY_ICONS = {
+  'phones-accessories': '📱', audio: '🎧', computing: '💻', 'smart-home': '🏠',
+  cameras: '📷', gaming: '🎮',
+};
+function iconFor(p) { return TYPE_ICONS[p.type] || CATEGORY_ICONS[p.category] || '🔌'; }
 
 // Casual nav labels mapped to the real backend category slugs.
 const NAV_CATEGORIES = [
@@ -353,11 +381,9 @@ function enrichProduct(p) {
   const deliveryDays = seededPick(p.id + 'e', 3); // 0=Tomorrow,1=2 days,2=3 days
   return Object.assign({}, p, {
     _discountPct: discountPct, _mrp: mrp, _rating: rating, _reviewsRaw: reviewsRaw,
-    _imgSeed: IMG_RANGE_START + seededPick(p.id + 'i', IMG_RANGE_SIZE),
     _badge: BADGES[badgeIdx], _deliveryDays: deliveryDays,
   });
 }
-function imgUrl(p) { return `https://picsum.photos/300/300?random=${p._imgSeed}`; }
 function formatReviews(n) { return n.toLocaleString('en-IN'); }
 function starsRow(rating) { const full = Math.round(rating); return '★'.repeat(full) + '☆'.repeat(5 - full); }
 function deliveryText(days) { return days === 0 ? 'Tomorrow' : days === 1 ? 'in 2 days' : 'in 3 days'; }
@@ -507,7 +533,7 @@ function renderGrid(products) {
     <div class="product-card">
       ${p._badge ? `<span class="badge-tag ${p._badge}">${p._badge === 'deal' ? 'Limited Deal' : 'Best Seller'}</span>` : ''}
       <div class="product-img-wrap" onclick="openPdp('${p.id}')">
-        <img src="${imgUrl(p)}" alt="${escapeHtml(p.name)}" loading="lazy">
+        <div class="product-visual"><span class="pv-icon">${iconFor(p)}</span></div>
       </div>
       <div class="product-title" onclick="openPdp('${p.id}')">${escapeHtml(p.name)}</div>
       <div class="product-rating-row">
@@ -569,8 +595,7 @@ function closePdp() { document.getElementById('pdpModal').classList.remove('open
 
 function renderPdp() {
   const p = currentPdpProduct;
-  document.getElementById('pdpImg').src = imgUrl(p);
-  document.getElementById('pdpImg').alt = p.name;
+  document.getElementById('pdpImg').innerHTML = `<span class="pv-icon">${iconFor(p)}</span>`;
   document.getElementById('pdpTitle').textContent = p.name;
   document.getElementById('pdpRating').innerHTML = `<span class="stars">${starsRow(p._rating)}</span> <a class="rev-link">${formatReviews(p._reviewsRaw)} ratings</a>`;
   document.getElementById('pdpPrice').textContent = `₹${p.base_price.toLocaleString('en-IN')}`;
@@ -587,7 +612,7 @@ function renderPdp() {
     .sort((a, b) => seededPick(p.id + a.id, 1000) - seededPick(p.id + b.id, 1000)).slice(0, 4);
   document.getElementById('crossSellRow').innerHTML = crossSell.map(cs => `
     <div class="cross-sell-card" onclick="openPdp('${cs.id}')">
-      <img src="${imgUrl(cs)}" alt="${escapeHtml(cs.name)}">
+      <div class="product-visual"><span class="pv-icon">${iconFor(cs)}</span></div>
       <div class="cs-price">₹${cs.base_price.toLocaleString('en-IN')}</div>
     </div>
   `).join('');

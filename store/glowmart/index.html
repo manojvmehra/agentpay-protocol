@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GlowMart — Beauty, Skincare &amp; Wellness Shopping</title>
+<link rel="icon" type="image/svg+xml" href="/store/glowmart/static/hermes-logo.svg">
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap');
@@ -56,6 +57,7 @@
   .icon-count { position: absolute; top: -7px; right: -10px; background: var(--accent); color: #fff; font-size: 9.5px; font-weight: 700; min-width: 15px; height: 15px; border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
   .back-link { font-size: 10.5px; color: var(--text-dimmer); border: 1px solid var(--border); padding: 4px 9px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
   .back-link:hover { border-color: var(--accent); color: var(--accent); }
+  .back-link-logo { width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; }
 
   .promo-strip { background: linear-gradient(90deg, var(--accent), #ff6fa3); color: #fff; text-align: center; padding: 6px 12px; font-size: 11.5px; font-weight: 600; }
 
@@ -85,6 +87,11 @@
   .product-img-wrap { position: relative; aspect-ratio: 1/1.1; width: 100%; overflow: hidden; background: var(--surface); }
   .product-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
   .product-card:hover .product-img-wrap img { transform: scale(1.06); }
+  .product-visual {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #ff8fab, var(--accent));
+  }
+  .product-visual .pv-icon { font-size: 44px; filter: drop-shadow(0 3px 8px rgba(0,0,0,.18)); }
   .discount-pill { position: absolute; top: 10px; left: 10px; background: var(--green); color: #fff; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
   .tag-pill { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.95); color: var(--accent-dark); font-size: 9.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
   .add-bag-hover {
@@ -120,6 +127,7 @@
   .pdp-close { position: absolute; top: 14px; right: 14px; background: #fff; border: 1px solid var(--border); width: 32px; height: 32px; border-radius: 50%; font-size: 15px; z-index: 2; }
   .pdp-img { background: var(--surface); aspect-ratio: 1/1; }
   .pdp-img img { width: 100%; height: 100%; object-fit: cover; }
+  .pdp-img .pv-icon { font-size: 72px; }
   .pdp-body { padding: 30px 30px 30px 24px; }
   .pdp-brand { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-dimmer); }
   .pdp-title { font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 700; margin: 4px 0 10px; line-height: 1.3; }
@@ -147,6 +155,8 @@
   .cross-sell-row { display: flex; gap: 10px; overflow-x: auto; }
   .cross-sell-card { flex: 0 0 100px; cursor: pointer; }
   .cross-sell-card img { width: 100px; height: 110px; object-fit: cover; border-radius: 8px; }
+  .cross-sell-card .product-visual { width: 100px; height: 110px; border-radius: 8px; }
+  .cross-sell-card .pv-icon { font-size: 30px; }
   .cross-sell-card .cs-price { font-size: 11px; font-weight: 700; margin-top: 4px; }
 
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #2b1f22; color: #fff; padding: 12px 22px; border-radius: 999px; font-size: 13px; z-index: 700; opacity: 0; transition: all .25s; pointer-events: none; }
@@ -179,7 +189,7 @@
       <input type="text" id="searchInput" placeholder="Search for skincare, makeup &amp; more">
     </div>
     <div class="header-icons">
-      <a class="back-link" href="/">← Hermes Chat</a>
+      <a class="back-link" href="/"><img class="back-link-logo" src="/store/glowmart/static/hermes-logo.svg" alt=""> Hermes Chat</a>
       <div class="header-icon" onclick="toggleWishlistPanel()">
         <span class="ic">♥</span><span>Wishlist</span>
         <span class="icon-count" id="wishlistCount" style="display:none">0</span>
@@ -259,7 +269,7 @@
 <div class="modal-overlay" id="pdpModal">
   <div class="pdp-modal">
     <button class="pdp-close" onclick="closePdp()">✕</button>
-    <div class="pdp-img"><img id="pdpImg" src="" alt=""></div>
+    <div class="pdp-img"><div id="pdpImg" class="product-visual"></div></div>
     <div class="pdp-body">
       <div class="pdp-brand">GlowMart</div>
       <div class="pdp-title" id="pdpTitle"></div>
@@ -298,8 +308,24 @@
 <script>
 const API = window.location.origin;
 const STORE_SLUG = 'glowmart';
-const IMG_RANGE_START = 601, IMG_RANGE_SIZE = 300;
 const TAGS = ['bestseller', 'clean', null, null, null];
+
+// Category-appropriate icon instead of a random stock photo.
+const TYPE_ICONS = {
+  moisturizer: '🧴', sunscreen: '☀️', serum: '💧', 'face-wash': '🧼', 'face-mask': '🫧',
+  toner: '🧴', 'eye-cream': '👁️', 'lip-care': '💋', 'face-oil': '💧', lipstick: '💄',
+  foundation: '🧴', eyeliner: '✏️', mascara: '👁️', blush: '🌸', powder: '✨',
+  shampoo: '🧴', conditioner: '🧴', 'hair-oil': '💧', 'hair-serum': '💧', 'hair-mask': '🧖',
+  'dry-shampoo': '🧴', 'hair-styling': '💇', perfume: '🌸', deodorant: '🧴',
+  'body-mist': '🌸', attar: '🌸', 'body-lotion': '🧴', 'body-wash': '🧼', soap: '🧼',
+  'hand-cream': '🧴', 'body-scrub': '🧼', 'bath-bomb': '🛁', 'hand-wash': '🧼',
+  'nail-polish': '💅', 'nail-care': '💅', supplement: '💊', 'face-tool': '🪞',
+  'essential-oil': '💧', 'bath-salts': '🛁',
+};
+const CATEGORY_ICONS = {
+  skincare: '🧴', makeup: '💄', haircare: '💇', fragrances: '🌸', 'bath-body': '🧼', wellness: '💅',
+};
+function iconFor(p) { return TYPE_ICONS[p.type] || CATEGORY_ICONS[p.category] || '🧴'; }
 
 const CATEGORIES = [
   ['All', ''], ['Skincare', 'skincare'], ['Makeup', 'makeup'], ['Haircare', 'haircare'],
@@ -347,11 +373,9 @@ function enrichProduct(p) {
   const reviewsRaw = 18 + seededPick(p.id + 'v', 3500);
   const tagIdx = seededPick(p.id + 't', TAGS.length);
   return Object.assign({}, p, {
-    _discountPct: discountPct, _mrp: mrp, _rating: rating, _reviewsRaw: reviewsRaw,
-    _imgSeed: IMG_RANGE_START + seededPick(p.id + 'i', IMG_RANGE_SIZE), _tag: TAGS[tagIdx],
+    _discountPct: discountPct, _mrp: mrp, _rating: rating, _reviewsRaw: reviewsRaw, _tag: TAGS[tagIdx],
   });
 }
-function imgUrl(p) { return `https://picsum.photos/300/350?random=${p._imgSeed}`; }
 function textOf(p) { return `${p.name} ${p.description || ''}`.toLowerCase(); }
 function matchesAny(text, keywords) { return keywords.some(k => text.includes(k)); }
 
@@ -486,7 +510,7 @@ function renderGrid(products) {
   grid.innerHTML = products.map(p => `
     <div class="product-card" onclick="openPdp('${p.id}')">
       <div class="product-img-wrap">
-        <img src="${imgUrl(p)}" alt="${escapeHtml(p.name)}" loading="lazy">
+        <div class="product-visual"><span class="pv-icon">${iconFor(p)}</span></div>
         <span class="discount-pill">${p._discountPct}% off</span>
         ${p._tag ? `<span class="tag-pill">${p._tag === 'bestseller' ? '⚡ Bestseller' : '🌿 Clean Beauty'}</span>` : ''}
         <div class="add-bag-hover" onclick="event.stopPropagation(); quickAddToBag('${p.id}')">+ Add to Bag</div>
@@ -545,8 +569,7 @@ function closePdp() { document.getElementById('pdpModal').classList.remove('open
 
 function renderPdp() {
   const p = currentPdpProduct;
-  document.getElementById('pdpImg').src = imgUrl(p);
-  document.getElementById('pdpImg').alt = p.name;
+  document.getElementById('pdpImg').innerHTML = `<span class="pv-icon">${iconFor(p)}</span>`;
   document.getElementById('pdpTitle').textContent = p.name;
   document.getElementById('pdpRating').innerHTML = `★ ${p._rating.toFixed(1)} &nbsp;(${p._reviewsRaw} Reviews)`;
   document.getElementById('pdpPrice').textContent = `₹${p.base_price.toLocaleString()}`;
@@ -570,7 +593,7 @@ function renderPdp() {
     .sort((a, b) => seededPick(p.id + a.id, 1000) - seededPick(p.id + b.id, 1000)).slice(0, 4);
   document.getElementById('crossSellRow').innerHTML = crossSell.map(cs => `
     <div class="cross-sell-card" onclick="openPdp('${cs.id}')">
-      <img src="${imgUrl(cs)}" alt="${escapeHtml(cs.name)}">
+      <div class="product-visual"><span class="pv-icon">${iconFor(cs)}</span></div>
       <div class="cs-price">₹${cs.base_price.toLocaleString()}</div>
     </div>
   `).join('');

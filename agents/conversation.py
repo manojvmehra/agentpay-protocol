@@ -221,6 +221,8 @@ class ConversationAgent:
             "unit": p.unit,
             "min_order": p.min_order,
             "image_url": p.image_url,
+            "category": p.category,
+            "type": p.metadata.get("type"),
             "merchant": merchant.info.name,
             "merchant_id": merchant.info.id,
             "bulk_discount_pct": max_discount,

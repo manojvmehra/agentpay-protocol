@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StyleBazaar — Fashion Shopping Site for Women, Men &amp; Kids</title>
+<link rel="icon" type="image/svg+xml" href="/store/stylebazaar/static/hermes-logo.svg">
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600&display=swap');
@@ -73,6 +74,7 @@
     padding: 4px 9px; border-radius: 999px; flex-shrink: 0; transition: all .15s; white-space: nowrap;
   }
   .back-link:hover { border-color: var(--accent); color: var(--accent); }
+  .back-link-logo { width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; }
 
   .promo-strip {
     background: linear-gradient(90deg, var(--accent), var(--accent-dark)); color: #fff;
@@ -126,6 +128,11 @@
   }
   .product-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
   .product-card:hover .product-img-wrap img { transform: scale(1.06); }
+  .product-visual {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  }
+  .product-visual .pv-icon { font-size: 48px; filter: drop-shadow(0 3px 8px rgba(0,0,0,.2)); }
   .product-card:hover .product-img-wrap { box-shadow: 0 10px 28px rgba(40,44,63,0.16); }
   .wishlist-btn {
     position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 50%;
@@ -176,6 +183,7 @@
   .pdp-close { position: absolute; top: 14px; right: 14px; background: #fff; border: 1px solid var(--border); width: 30px; height: 30px; border-radius: 50%; font-size: 15px; z-index: 2; }
   .pdp-img { background: var(--surface-2); aspect-ratio: 3/4; }
   .pdp-img img { width: 100%; height: 100%; object-fit: cover; }
+  .pdp-img .pv-icon { font-size: 72px; }
   .pdp-body { padding: 28px 28px 28px 22px; }
   .pdp-brand { font-size: 17px; font-weight: 700; }
   .pdp-title { font-size: 13.5px; color: var(--text-dim); margin-top: 3px; margin-bottom: 10px; }
@@ -213,6 +221,8 @@
   .cross-sell-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
   .cross-sell-card { flex: 0 0 100px; cursor: pointer; }
   .cross-sell-card img { width: 100px; height: 130px; object-fit: cover; border-radius: 4px; }
+  .cross-sell-card .product-visual { width: 100px; height: 130px; border-radius: 4px; }
+  .cross-sell-card .pv-icon { font-size: 30px; }
   .cross-sell-card .cs-price { font-size: 11px; font-weight: 700; margin-top: 4px; }
 
   .toast {
@@ -267,7 +277,7 @@
       <input type="text" id="searchInput" placeholder="Search for products, brands and more">
     </div>
     <div class="header-icons">
-      <a class="back-link" href="/">← Hermes Chat</a>
+      <a class="back-link" href="/"><img class="back-link-logo" src="/store/stylebazaar/static/hermes-logo.svg" alt=""> Hermes Chat</a>
       <div class="header-icon" onclick="toggleWishlistPanel()">
         <span class="ic">♡</span><span class="lbl">Wishlist</span>
         <span class="icon-count" id="wishlistCount" style="display:none">0</span>
@@ -348,7 +358,7 @@
 <div class="modal-overlay" id="pdpModal">
   <div class="pdp-modal">
     <button class="pdp-close" onclick="closePdp()">✕</button>
-    <div class="pdp-img"><img id="pdpImg" src="" alt=""></div>
+    <div class="pdp-img"><div id="pdpImg" class="product-visual"></div></div>
     <div class="pdp-body">
       <div class="pdp-brand">StyleBazaar</div>
       <div class="pdp-title" id="pdpTitle"></div>
@@ -399,8 +409,16 @@
 <script>
 const API = window.location.origin;
 const STORE_SLUG = 'stylebazaar';
-const IMG_RANGE_START = 1, IMG_RANGE_SIZE = 300;
 const BADGES = ['bestseller', 'trending', null, null, null]; // ~40% of products get a badge
+
+// Category-appropriate icon instead of a random stock photo — every product
+// gets a visual that matches what it actually is.
+const TYPE_ICONS = {
+  shirt: '👔', tshirt: '👕', jeans: '👖', dress: '👗', kurta: '🥻', top: '👚',
+  shoes: '👟', bag: '👜', belt: '🪢', wallet: '👛', watch: '⌚',
+};
+const CATEGORY_ICONS = { men: '👕', women: '👗', accessories: '👜' };
+function iconFor(p) { return TYPE_ICONS[p.type] || CATEGORY_ICONS[p.category] || '🛍️'; }
 
 const COLOR_HEX = {
   'White': '#ffffff', 'Black': '#1a1a1a', 'Navy': '#1b2a4a', 'Grey': '#9a9a9a', 'Sky Blue': '#87ceeb',
@@ -435,11 +453,9 @@ function enrichProduct(p) {
     _mrp: mrp,
     _rating: rating,
     _reviewsRaw: reviewsRaw,
-    _imgSeed: IMG_RANGE_START + seededPick(p.id + 'i', IMG_RANGE_SIZE),
     _badge: BADGES[badgeIdx],
   });
 }
-function imgUrl(p) { return `https://picsum.photos/300/400?random=${p._imgSeed}`; }
 function formatReviews(n) { return n > 999 ? (n / 1000).toFixed(1) + 'k' : String(n); }
 function colorHex(name) { return COLOR_HEX[name] || `hsl(${hashStr(name || 'x') % 360} 45% 62%)`; }
 function starsFor(rating) {
@@ -615,7 +631,7 @@ function renderGrid(products) {
     return `
     <div class="product-card" onclick="openPdp('${p.id}')">
       <div class="product-img-wrap">
-        <img src="${imgUrl(p)}" alt="${escapeHtml(p.name)}" loading="lazy">
+        <div class="product-visual"><span class="pv-icon">${iconFor(p)}</span></div>
         ${p._badge ? `<span class="badge-tag ${p._badge}">${p._badge === 'bestseller' ? 'Bestseller' : 'Trending'}</span>` : ''}
         <button class="wishlist-btn ${isWished ? 'active' : ''}" onclick="event.stopPropagation(); toggleWishlist('${p.id}', this)">${isWished ? '♥' : '♡'}</button>
       </div>
@@ -702,8 +718,7 @@ function closePdp() { document.getElementById('pdpModal').classList.remove('open
 
 function renderPdp() {
   const p = currentPdpProduct;
-  document.getElementById('pdpImg').src = imgUrl(p);
-  document.getElementById('pdpImg').alt = p.name;
+  document.getElementById('pdpImg').innerHTML = `<span class="pv-icon">${iconFor(p)}</span>`;
   document.getElementById('pdpTitle').textContent = p.name;
   document.getElementById('pdpRating').innerHTML = `★ ${p._rating.toFixed(1)} &nbsp;|&nbsp; ${formatReviews(p._reviewsRaw)} Ratings`;
   document.getElementById('pdpPrice').textContent = `₹${p.base_price.toLocaleString()}`;
@@ -748,7 +763,7 @@ function renderPdp() {
     .slice(0, 4);
   document.getElementById('crossSellRow').innerHTML = crossSell.map(cs => `
     <div class="cross-sell-card" onclick="openPdp('${cs.id}')">
-      <img src="${imgUrl(cs)}" alt="${escapeHtml(cs.name)}">
+      <div class="product-visual"><span class="pv-icon">${iconFor(cs)}</span></div>
       <div class="cs-price">₹${cs.base_price.toLocaleString()}</div>
     </div>
   `).join('');

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hermes — AI Shopping Assistant</title>
+<link rel="icon" type="image/svg+xml" href="/static/hermes-logo.svg">
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 <style>
@@ -95,8 +96,7 @@
   .sidebar-brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15.5px; overflow: hidden; }
   .sidebar-brand .brand-icon {
     width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
-    background: linear-gradient(135deg, var(--accent), var(--blue));
-    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px;
+    display: block; object-fit: cover;
   }
   .sidebar-brand .online-dot {
     width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0;
@@ -206,9 +206,7 @@
   .empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 12px 10px; }
   .empty-logo {
     width: 64px; height: 64px; border-radius: 50%; margin-bottom: 16px;
-    background: linear-gradient(135deg, var(--accent), var(--blue));
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 800; color: #fff; font-size: 26px; box-shadow: 0 8px 24px rgba(0,153,127,.25);
+    display: block; object-fit: cover; box-shadow: 0 8px 24px rgba(0,153,127,.25);
   }
   .empty-title { font-size: 26px; font-weight: 800; letter-spacing: -.4px; color: var(--text); }
   .empty-subtitle { font-size: 13.5px; color: var(--text-dim); margin-top: 6px; }
@@ -233,9 +231,7 @@
 
   .avatar {
     width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-    background: linear-gradient(135deg, var(--accent), var(--blue));
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 800; color: #fff; font-size: 12.5px; margin-top: 2px;
+    display: block; object-fit: cover; margin-top: 2px;
     box-shadow: 0 2px 8px rgba(0,153,127,.25);
   }
 
@@ -276,12 +272,13 @@
   .product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
   .product-img {
     aspect-ratio: 1/1; width: 100%; position: relative;
-    background: linear-gradient(135deg, hsl(var(--hue,200) 70% 94%), hsl(calc(var(--hue,200) + 40) 70% 88%));
     display: flex; align-items: center; justify-content: center; overflow: hidden;
   }
-  .product-img img { width: 100%; height: 100%; object-fit: cover; }
-  .img-fallback-text { display: none; font-size: 34px; font-weight: 800; color: rgba(23,23,31,.2); }
-  .product-img.img-fallback .img-fallback-text { display: flex; }
+  .product-img.mc-teal { background: linear-gradient(135deg, #00997f, #0fb88f); }
+  .product-img.mc-blue { background: linear-gradient(135deg, #2f6fed, #5b8def); }
+  .product-img.mc-pink { background: linear-gradient(135deg, #db3f8f, #f26fb0); }
+  .product-img.mc-purple { background: linear-gradient(135deg, #8352e0, #a67ee8); }
+  .product-img .pv-icon { font-size: 48px; filter: drop-shadow(0 3px 8px rgba(0,0,0,.18)); }
   .bulk-badge {
     position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,.92); color: var(--accent);
     font-size: 9.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; box-shadow: var(--shadow-sm);
@@ -359,10 +356,9 @@
   .input-avatar-wrap { display: flex; justify-content: center; padding-bottom: 8px; }
   .input-avatar {
     width: 34px; height: 34px; border-radius: 50%; position: relative;
-    background: linear-gradient(135deg, var(--accent), var(--blue));
-    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 14px;
     box-shadow: 0 3px 10px rgba(0,153,127,.25);
   }
+  .input-avatar .core { width: 100%; height: 100%; border-radius: 50%; display: block; object-fit: cover; }
   .input-avatar .ring { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid transparent; opacity: 0; }
   .input-avatar .ring2 { inset: -11px; }
   .input-avatar.idle .ring { opacity: 0; }
@@ -490,6 +486,7 @@
     background: linear-gradient(135deg, var(--accent), var(--blue)); color: #fff; border-color: transparent;
     box-shadow: 0 3px 10px rgba(0,153,127,.25);
   }
+  .net-node.buyer .net-node-icon-img { background: none; object-fit: cover; display: block; }
   .net-node-label { font-size: 8.5px; color: var(--text-dimmer); text-align: center; line-height: 1.2; font-weight: 600; max-width: 62px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .net-node-agent-badge { font-size: 7px; font-weight: 700; text-align: center; line-height: 1.2; max-width: 66px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--purple); opacity: .9; }
   .net-node.active .net-node-icon { transform: scale(1.18); }
@@ -575,7 +572,7 @@
 <div class="sidebar" id="sidebar">
   <div class="sidebar-top">
     <div class="sidebar-brand">
-      <div class="brand-icon">☿</div>
+      <img class="brand-icon" src="/static/hermes-logo.svg" alt="Hermes">
       <span class="label">Hermes</span>
       <span class="online-dot label"></span>
     </div>
@@ -616,7 +613,7 @@
     <div class="chat-scroll" id="chatScroll">
       <div class="chat-col" id="chatCol">
         <div class="empty-state" id="welcome">
-          <div class="empty-logo">H</div>
+          <img class="empty-logo" src="/static/hermes-logo.svg" alt="Hermes">
           <h1 class="empty-title">Hermes</h1>
           <p class="empty-subtitle">AI Shopping Assistant — <span id="storeCountTextEmpty">Connecting to stores…</span></p>
           <div class="suggestions-grid">
@@ -632,7 +629,7 @@
     <div class="input-bar">
       <div class="input-avatar-wrap">
         <div class="input-avatar idle" id="voiceOverlayAvatar">
-          <span class="core">H</span>
+          <img class="core" src="/static/hermes-logo.svg" alt="Hermes">
           <span class="ring"></span>
           <span class="ring ring2"></span>
         </div>
@@ -947,7 +944,7 @@ function addTypingIndicator() {
   const row = document.createElement('div');
   row.className = 'msg-row agent';
   row.id = 'typingRow';
-  row.innerHTML = `<div class="avatar thinking">H</div><div class="bubble-stack"><div class="bubble typing-bubble"><span></span><span></span><span></span></div></div>`;
+  row.innerHTML = `<img class="avatar thinking" src="/static/hermes-logo.svg" alt="Hermes"><div class="bubble-stack"><div class="bubble typing-bubble"><span></span><span></span><span></span></div></div>`;
   col.appendChild(row);
   scrollToBottom();
 }
@@ -1010,7 +1007,7 @@ function agentRow(innerHtml) {
   const col = document.getElementById('chatCol');
   const row = document.createElement('div');
   row.className = 'msg-row agent';
-  row.innerHTML = `<div class="avatar">H</div><div class="bubble-stack">${innerHtml}</div>`;
+  row.innerHTML = `<img class="avatar" src="/static/hermes-logo.svg" alt="Hermes"><div class="bubble-stack">${innerHtml}</div>`;
   col.appendChild(row);
   scrollToBottom();
   return row;
@@ -1042,12 +1039,6 @@ function renderAgentMessage(msg) {
   }
 }
 
-function hueFor(name) {
-  let h = 0;
-  for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
-  return h;
-}
-
 function seededRandom(str) {
   let h = 0;
   for (let i = 0; i < (str || '').length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
@@ -1056,13 +1047,53 @@ function seededRandom(str) {
 function ratingFor(seed) { return (3.8 + seededRandom(seed + '::rating') * 1.1).toFixed(1); }
 function discountPctFor(seed) { return 10 + Math.floor(seededRandom(seed + '::discount') * 31); }
 function originalPriceFor(price, pct) { return Math.max(price, Math.round(price / (1 - pct / 100))); }
-function picsumUrlFor(seed) { return `https://picsum.photos/seed/${encodeURIComponent(seed)}/300/300`; }
 function merchantColorClass(name) {
   const n = (name || '').toLowerCase();
   if (n.includes('stylebazaar')) return 'mc-teal';
   if (n.includes('gadgetstore')) return 'mc-blue';
   if (n.includes('glowmart')) return 'mc-pink';
   return 'mc-purple';
+}
+
+// Category-appropriate icons instead of random stock photos — every product
+// gets a visual that actually matches what it is, loads instantly, and never
+// breaks. Keyed by the specific product `type` first, falling back to the
+// broader `category`, then a generic per-store icon.
+const TYPE_ICONS = {
+  // StyleBazaar
+  shirt: '👔', tshirt: '👕', jeans: '👖', dress: '👗', kurta: '🥻', top: '👚',
+  shoes: '👟', bag: '👜', belt: '🪢', wallet: '👛', watch: '⌚',
+  // GadgetStore
+  'phone-case': '📱', 'power-bank': '🔋', 'screen-protector': '🛡️', charging: '🔌',
+  'phone-mount': '📌', 'phone-grip': '📱', earphones: '🎧', earbuds: '🎧', neckband: '🎧',
+  speaker: '🔊', keyboard: '⌨️', mouse: '🖱️', monitor: '🖥️', 'usb-hub': '🔌',
+  'laptop-stand': '💻', webcam: '📷', 'cable-organizer': '🔌', storage: '💾',
+  'smart-bulb': '💡', 'smart-plug': '🔌', 'smart-speaker': '🔊', 'security-camera': '📹',
+  'smart-doorbell': '🔔', 'led-strip': '💡', 'smart-switch': '🔘', 'smart-climate': '🌡️',
+  'smart-sensor': '📡', 'action-camera': '📷', tripod: '📷', 'ring-light': '💡',
+  'camera-bag': '👜', 'selfie-stick': '🤳', gimbal: '📷', 'memory-card': '💾',
+  'camera-accessory': '📷', 'gaming-mouse': '🖱️', 'gaming-keyboard': '⌨️',
+  'gaming-headset': '🎧', controller: '🎮', 'mouse-pad': '🖱️', 'gaming-chair': '🪑',
+  // GlowMart
+  moisturizer: '🧴', sunscreen: '☀️', serum: '💧', 'face-wash': '🧼', 'face-mask': '🫧',
+  toner: '🧴', 'eye-cream': '👁️', 'lip-care': '💋', 'face-oil': '💧', lipstick: '💄',
+  foundation: '🧴', eyeliner: '✏️', mascara: '👁️', blush: '🌸', powder: '✨',
+  shampoo: '🧴', conditioner: '🧴', 'hair-oil': '💧', 'hair-serum': '💧', 'hair-mask': '🧖',
+  'dry-shampoo': '🧴', 'hair-styling': '💇', perfume: '🌸', deodorant: '🧴',
+  'body-mist': '🌸', attar: '🌸', 'body-lotion': '🧴', 'body-wash': '🧼', soap: '🧼',
+  'hand-cream': '🧴', 'body-scrub': '🧼', 'bath-bomb': '🛁', 'hand-wash': '🧼',
+  'nail-polish': '💅', 'nail-care': '💅', supplement: '💊', 'face-tool': '🪞',
+  'essential-oil': '💧', 'bath-salts': '🛁',
+};
+const CATEGORY_ICONS = {
+  men: '👕', women: '👗', accessories: '👜',
+  'phones-accessories': '📱', audio: '🎧', computing: '💻', 'smart-home': '🏠',
+  cameras: '📷', gaming: '🎮',
+  skincare: '🧴', makeup: '💄', haircare: '💇', fragrances: '🌸', 'bath-body': '🧼', wellness: '💅',
+};
+const STORE_DEFAULT_ICON = { 'mc-teal': '🛍️', 'mc-blue': '🔌', 'mc-pink': '🧴' };
+function iconForProduct(p, mColor) {
+  return TYPE_ICONS[p.type] || CATEGORY_ICONS[p.category] || STORE_DEFAULT_ICON[mColor] || '🛍️';
 }
 
 function renderOptions(content) {
@@ -1092,7 +1123,6 @@ function renderProductCards(products) {
 }
 
 function productCardHtml(p) {
-  const escName = (p.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   const seed = String(p.id || p.name || 'product');
   const rating = ratingFor(seed);
   const discountPct = discountPctFor(seed);
@@ -1101,10 +1131,8 @@ function productCardHtml(p) {
   const mColor = merchantColorClass(p.merchant);
   return `
     <div class="product-card">
-      <div class="product-img" style="--hue:${hueFor(p.name)}">
-        <img src="${picsumUrlFor(seed)}" alt="${escName}" loading="lazy"
-             onerror="this.style.display='none'; this.parentElement.classList.add('img-fallback')">
-        <span class="img-fallback-text">${(p.name || '?').charAt(0)}</span>
+      <div class="product-img ${mColor}">
+        <span class="pv-icon">${iconForProduct(p, mColor)}</span>
         ${p.bulk_discount_pct ? `<span class="bulk-badge">Up to ${p.bulk_discount_pct}% off</span>` : ''}
       </div>
       <div class="product-body">
@@ -1726,8 +1754,11 @@ function buildNetwork(merchants) {
   const nodesHtml = nodes.map(n => {
     const p = positions[n.id];
     const title = n.agentBadge ? `${n.name} — ${n.agentBadge}` : n.name;
+    const iconHtml = n.kind === 'buyer'
+      ? `<img class="net-node-icon net-node-icon-img" src="/static/hermes-logo.svg" alt="Hermes">`
+      : `<span class="net-node-icon">${escapeHtml(n.icon)}</span>`;
     return `<div class="net-node ${n.kind}" id="node-${n.id}" style="left:${p.x}%; top:${p.y}%;" title="${escapeHtml(title)}">
-      <span class="net-node-icon">${escapeHtml(n.icon)}</span>
+      ${iconHtml}
       <span class="net-node-label">${escapeHtml(n.name)}</span>
       ${n.agentBadge ? `<span class="net-node-agent-badge">${escapeHtml(n.agentBadge)}</span>` : ''}
     </div>`;
