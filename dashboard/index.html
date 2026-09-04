@@ -354,6 +354,11 @@
     font-size: 8.5px; color: var(--text-dimmer); text-align: center; line-height: 1.2;
     max-width: 58px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  .net-node-agent-badge {
+    font-size: 7px; font-weight: 700; text-align: center; line-height: 1.2;
+    max-width: 62px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: var(--text-dimmer); opacity: .85;
+  }
   .net-node.active .net-node-icon { transform: scale(1.18); }
   .net-node.active.blue .net-node-icon { border-color: var(--blue); box-shadow: 0 0 14px var(--blue); color: var(--blue); }
   .net-node.active.orange .net-node-icon { border-color: var(--orange); box-shadow: 0 0 14px var(--orange); color: var(--orange); }
@@ -389,6 +394,27 @@
   .pm-route { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
   .pm-arrow { color: var(--text-dimmer); margin: 0 3px; }
   .pm-summary { font-size: 11.5px; line-height: 1.4; }
+
+  .pm-agent-badge {
+    display: inline-flex; align-items: center; font-size: 9px; font-weight: 700;
+    padding: 1px 6px; border-radius: 999px; margin-left: 4px; white-space: nowrap;
+  }
+  .pm-agent-badge.llm { background: rgba(170,102,255,.18); color: #c9a3ff; }
+  .pm-agent-badge.rule { background: var(--surface-3); color: var(--text-dimmer); }
+
+  .pm-reasoning { margin-top: 6px; }
+  .pm-reasoning summary {
+    font-size: 10.5px; font-weight: 600; color: #c9a3ff; cursor: pointer; list-style: none;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .pm-reasoning summary::-webkit-details-marker { display: none; }
+  .pm-reasoning summary::before { content: '▸'; font-size: 9px; transition: transform .15s; }
+  .pm-reasoning[open] summary::before { transform: rotate(90deg); }
+  .pm-reasoning-body {
+    font-size: 11px; line-height: 1.5; color: var(--text-dim); margin-top: 4px;
+    padding: 8px 10px; background: var(--surface-3); border-radius: 8px;
+    border-left: 2px solid #aa66ff;
+  }
 
   /* ══════════════ MOBILE NETWORK OVERLAY ══════════════ */
   .mobile-network-btn {
@@ -1217,6 +1243,7 @@ function summarizeMessagesForVoice(messages) {
 // Maps a protocol message "sender"/"receiver" display name (e.g. "FestKart",
 // "Buyer Agent", "Razorpay") to the DOM node id used in the network viz.
 let nodeIdByName = {};
+let llmAgentNames = new Set();  // merchant display names running LLMMerchantAgent (e.g. "StyleBazaar")
 const COLOR_CLASSES = ['blue', 'orange', 'yellow', 'green', 'red'];
 const PM_STYLE = {
   'catalog.request':   { cls: 'blue',   glow: false, label: '📇 Catalog Request' },
@@ -1233,9 +1260,13 @@ const PM_STYLE = {
 
 function buildNetwork(merchants) {
   nodeIdByName = { 'Buyer Agent': 'buyer', 'Razorpay': 'razorpay' };
+  llmAgentNames = new Set(merchants.filter(m => m.is_llm_agent).map(m => m.name));
   const nodes = [
     { id: 'buyer', name: 'Buyer Agent', kind: 'buyer', icon: 'H' },
-    ...merchants.map(m => ({ id: m.id, name: m.name, kind: 'merchant', icon: (m.name || '?').charAt(0) })),
+    ...merchants.map(m => ({
+      id: m.id, name: m.name, kind: 'merchant', icon: (m.name || '?').charAt(0),
+      agentBadge: m.is_llm_agent ? '🧠 LLM Agent' : '⚙️ Rule-based',
+    })),
     { id: 'razorpay', name: 'Razorpay', kind: 'gateway', icon: '💳' },
   ];
   merchants.forEach(m => { nodeIdByName[m.name] = m.id; });
@@ -1259,9 +1290,11 @@ function buildNetwork(merchants) {
 
   const nodesHtml = nodes.map(n => {
     const p = positions[n.id];
-    return `<div class="net-node ${n.kind}" id="node-${n.id}" style="left:${p.x}%; top:${p.y}%;" title="${escapeHtml(n.name)}">
+    const title = n.agentBadge ? `${n.name} — ${n.agentBadge}` : n.name;
+    return `<div class="net-node ${n.kind}" id="node-${n.id}" style="left:${p.x}%; top:${p.y}%;" title="${escapeHtml(title)}">
       <span class="net-node-icon">${escapeHtml(n.icon)}</span>
       <span class="net-node-label">${escapeHtml(n.name)}</span>
+      ${n.agentBadge ? `<span class="net-node-agent-badge">${escapeHtml(n.agentBadge)}</span>` : ''}
     </div>`;
   }).join('');
 
@@ -1296,13 +1329,34 @@ function renderProtocolMessage(pm) {
   const feed = document.getElementById('protocolFeed');
   const el = document.createElement('div');
   el.className = `pm-card ${style.cls}${style.glow ? ' pm-glow' : ''}`;
+
+  // Badge only the seller's own negotiation response line (sender is the
+  // merchant, not the buyer/gateway), so "Buyer Agent" offer lines and
+  // catalog/payment lines never get an agent-type badge.
+  const senderIsMerchant = pm.sender !== 'Buyer Agent' && pm.sender !== 'Razorpay' && pm.sender !== 'System';
+  const isLlmAgent = !!(pm.details && pm.details.is_llm_agent) || (senderIsMerchant && llmAgentNames.has(pm.sender));
+  const agentBadgeHtml = (senderIsMerchant && pm.type.startsWith('negotiate.'))
+    ? (isLlmAgent
+        ? `<span class="pm-agent-badge llm">🧠 LLM Agent</span>`
+        : `<span class="pm-agent-badge rule">⚙️ Rule-based</span>`)
+    : '';
+
+  const reasoning = pm.details && pm.details.seller_reasoning;
+  const reasoningHtml = reasoning ? `
+    <details class="pm-reasoning">
+      <summary>🧠 Seller's reasoning</summary>
+      <div class="pm-reasoning-body">${escapeHtml(reasoning)}</div>
+    </details>
+  ` : '';
+
   el.innerHTML = `
     <div class="pm-top">
       <span class="pm-type">${style.label}</span>
       <span class="pm-time">${escapeHtml(pm.timestamp || '')}</span>
     </div>
-    <div class="pm-route">${escapeHtml(pm.sender)} <span class="pm-arrow">→</span> ${escapeHtml(pm.receiver)}</div>
+    <div class="pm-route">${escapeHtml(pm.sender)} <span class="pm-arrow">→</span> ${escapeHtml(pm.receiver)} ${agentBadgeHtml}</div>
     <div class="pm-summary">${escapeHtml(pm.summary || '')}</div>
+    ${reasoningHtml}
   `;
   feed.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));

@@ -14,15 +14,40 @@ from config import GROQ_API_KEY, GROQ_MODEL
 MAX_RATE_LIMIT_RETRIES = 3
 
 
-async def llm_reason(system_prompt: str, user_message: str, response_format: str = "json") -> dict | str:
+async def llm_reason(
+    system_prompt: str,
+    user_message: str,
+    response_format: str = "json",
+    model: str | None = None,
+    temperature: float = 0.3,
+    max_tokens: int = 2000,
+    timeout: float = 30,
+    reasoning_effort: str | None = None,
+) -> dict | str:
     """
     Send a reasoning request to the LLM and get a structured response.
-    
+
     Args:
         system_prompt: Instructions for the LLM
         user_message: The actual query/context
         response_format: "json" for structured output, "text" for free text
-    
+        model: Groq model id override (defaults to config.GROQ_MODEL)
+        temperature: sampling temperature — raise this for callers that need
+            genuinely varied (non-deterministic) outputs, like a seller agent
+            that shouldn't negotiate identically every time
+        max_tokens: cap on the response — lower this for small structured
+            replies to save tokens/latency against Groq's rate limits. Note
+            reasoning models (e.g. gpt-oss) spend part of this budget on a
+            hidden reasoning trace before the visible answer — too low a cap
+            here gets you an empty response, not a short one.
+        timeout: seconds before giving up — callers on a latency-sensitive
+            path (e.g. a per-round negotiation call) should pass something
+            tighter than the default so they can fail fast to a fallback
+        reasoning_effort: for reasoning models (gpt-oss on Groq), "low" cuts
+            the hidden reasoning trace dramatically (~280 -> ~60 tokens in
+            testing) — worth setting on any latency- or rate-limit-sensitive
+            call. None leaves the model's default.
+
     Returns:
         Parsed JSON dict or text string
     """
@@ -30,23 +55,25 @@ async def llm_reason(system_prompt: str, user_message: str, response_format: str
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
     }
-    
+
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message},
     ]
-    
+
     body = {
-        "model": GROQ_MODEL,
+        "model": model or GROQ_MODEL,
         "messages": messages,
-        "temperature": 0.3,  # Low temperature for consistent reasoning
-        "max_tokens": 2000,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
     }
-    
+
     if response_format == "json":
         body["response_format"] = {"type": "json_object"}
-    
-    async with httpx.AsyncClient(timeout=30) as client:
+    if reasoning_effort:
+        body["reasoning_effort"] = reasoning_effort
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
         for attempt in range(1, MAX_RATE_LIMIT_RETRIES + 1):
             response = await client.post(
                 "https://api.groq.com/openai/v1/chat/completions",

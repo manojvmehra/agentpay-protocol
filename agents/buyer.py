@@ -68,6 +68,23 @@ class BuyerAgent:
         return value
 
     @staticmethod
+    def _summarize_negotiation_response(response: ProtocolMessage, current_offer: float) -> str:
+        """Human-readable summary of a seller's negotiation response for the protocol
+        feed. Prefers the seller's own "message" field — both the rule-based merchant
+        and LLMMerchantAgent set this (the LLM seller's message_to_buyer lands here),
+        so this is also how the seller's in-character reply surfaces in the UI."""
+        p = response.payload
+        if p.get("message"):
+            return p["message"]
+        if response.type == MessageType.NEGOTIATE_ACCEPT:
+            return f"Accepted ₹{p.get('accepted_total', current_offer):,.0f}"
+        if response.type == MessageType.NEGOTIATE_COUNTER:
+            return f"Countered with ₹{p.get('counter_total', 0):,.0f}"
+        if response.type == MessageType.NEGOTIATE_REJECT:
+            return f"Rejected — {p.get('reason', 'terms not acceptable')}"
+        return response.type.value
+
+    @staticmethod
     def _log_protocol_message(log: list, sender: str, receiver: str, msg_type: str,
                                summary: str, details: dict) -> None:
         log.append({
@@ -345,7 +362,7 @@ Available Merchants:
                 }
             )
             
-            response = merchant.handle_message(offer_msg)
+            response = await merchant.handle_message_async(offer_msg)
 
             if protocol_log is not None:
                 self._log_protocol_message(protocol_log, "Buyer Agent", merchant_name,
@@ -353,14 +370,9 @@ Available Merchants:
                     f"Offering ₹{current_offer:,.0f} for {sum(i['quantity'] for i in items)} unit(s)",
                     offer_msg.payload)
 
-                response_summaries = {
-                    MessageType.NEGOTIATE_ACCEPT: lambda p: f"Accepted ₹{p.get('accepted_total', current_offer):,.0f}",
-                    MessageType.NEGOTIATE_COUNTER: lambda p: f"Countered with ₹{p.get('counter_total', 0):,.0f}",
-                    MessageType.NEGOTIATE_REJECT: lambda p: f"Rejected — {p.get('reason', 'terms not acceptable')}",
-                }
-                summarize = response_summaries.get(response.type, lambda p: response.type.value)
                 self._log_protocol_message(protocol_log, merchant_name, "Buyer Agent",
-                    response.type.value, summarize(response.payload), response.payload)
+                    response.type.value, self._summarize_negotiation_response(response, current_offer),
+                    response.payload)
 
             await notify("negotiation_round", {
                 "message": f"Round {round_num} with {merchant_name}: "

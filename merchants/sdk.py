@@ -78,7 +78,15 @@ class MerchantAgent:
         
         handler = handlers.get(message.type, self._handle_unknown)
         return handler(message)
-    
+
+    async def handle_message_async(self, message: ProtocolMessage) -> ProtocolMessage:
+        """Async entry point for negotiation, so a merchant's handler can await real
+        I/O (e.g. an LLM call) without forcing every merchant onto that path. The
+        default here just runs the synchronous rule-based dispatch — override this
+        (not handle_message) for a handler that needs genuine async work; see
+        LLMMerchantAgent in merchants/llm_agent.py."""
+        return self.handle_message(message)
+
     def _handle_discover(self, msg: ProtocolMessage) -> ProtocolMessage:
         """Respond to merchant discovery requests."""
         return ProtocolMessage(

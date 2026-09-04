@@ -26,15 +26,10 @@ from typing import Optional
 
 from agents.buyer import BuyerAgent
 from agents.conversation import ConversationAgent
-from merchants.festkart import create_festkart
-from merchants.printboss import create_printboss
-from merchants.catercloud import create_catercloud
-from merchants.techbazaar import create_techbazaar
-from merchants.giftgenie import create_giftgenie
-from merchants.sportstar import create_sportstar
 from merchants.stylebazaar import create_stylebazaar
 from merchants.gadgetstore import create_gadgetstore
 from merchants.glowmart import create_glowmart
+from merchants.llm_agent import LLMMerchantAgent
 from config import HOST, PORT, RAZORPAY_KEY_ID, ELEVENLABS_AGENT_ID
 
 app = FastAPI(
@@ -53,23 +48,13 @@ app.add_middleware(
 # Initialize merchants and buyer agent
 buyer_agent = BuyerAgent()
 
-# Register demo merchants
-festkart = create_festkart()
-printboss = create_printboss()
-catercloud = create_catercloud()
-techbazaar = create_techbazaar()
-giftgenie = create_giftgenie()
-sportstar = create_sportstar()
+# Register demo merchants. StyleBazaar runs on a real LLM-powered negotiation
+# agent (see merchants/llm_agent.py); GadgetStore and GlowMart stay on the
+# rule-based MerchantAgent negotiation logic.
 stylebazaar = create_stylebazaar()
 gadgetstore = create_gadgetstore()
 glowmart = create_glowmart()
 
-buyer_agent.register_merchant(festkart)
-buyer_agent.register_merchant(printboss)
-buyer_agent.register_merchant(catercloud)
-buyer_agent.register_merchant(techbazaar)
-buyer_agent.register_merchant(giftgenie)
-buyer_agent.register_merchant(sportstar)
 buyer_agent.register_merchant(stylebazaar)
 buyer_agent.register_merchant(gadgetstore)
 buyer_agent.register_merchant(glowmart)
@@ -122,6 +107,7 @@ async def list_merchants():
             "description": merchant.info.description,
             "categories": merchant.info.categories,
             "product_count": len(merchant.products),
+            "is_llm_agent": isinstance(merchant, LLMMerchantAgent),
             "products": [
                 {
                     "id": p.id,

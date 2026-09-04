@@ -10,7 +10,7 @@ and combo deals.
 """
 
 from protocol.spec import Product
-from merchants.sdk import MerchantAgent
+from merchants.llm_agent import LLMMerchantAgent
 from merchants.catalog_utils import add_fashion_catalog
 
 COLORS = ["White", "Black", "Navy", "Grey", "Sky Blue", "Red", "Olive", "Maroon", "Beige", "Mustard"]
@@ -26,8 +26,11 @@ def _color(i: int) -> str:
     return COLORS[i % len(COLORS)]
 
 
-def create_stylebazaar() -> MerchantAgent:
-    agent = MerchantAgent(
+def create_stylebazaar() -> LLMMerchantAgent:
+    """StyleBazaar runs on LLMMerchantAgent — a genuine LLM seller persona
+    negotiates bulk deals here instead of the fixed rule-based logic every
+    other merchant uses. See merchants/llm_agent.py."""
+    agent = LLMMerchantAgent(
         name="StyleBazaar",
         description=(
             "Your friendly neighborhood fashion stylist — shirts, tees, jeans, dresses, kurtas, "

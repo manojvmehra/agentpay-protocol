@@ -9,15 +9,14 @@ Hermes is an open protocol + SDK that enables **agent-to-agent commerce** — wh
 **One command. Multiple merchants. Real payments. Full autonomy.**
 
 ```
-You: "Plan my college fest for 500 people. Need merch, printing, and food. Budget ₹1,50,000"
+You: "I need 100 cotton t-shirts for a college fest, under ₹40,000"
 
-Hermes: Talking to 3 merchants... negotiating bulk deals... comparing prices...
-  → FestKart: 500 t-shirts @ ₹280/ea (15% bulk discount) = ₹1,40,000 ✗ over budget
-  → FestKart: 300 t-shirts + 200 caps combo @ ₹220/ea = ₹66,000 ✓
-  → PrintBoss: 50 banners + 500 ID cards = ₹32,000 ✓  
-  → CaterCloud: 500 lunch boxes @ ₹90/ea = ₹45,000 ✓
-  Total: ₹1,43,000 (under budget by ₹7,000)
-  → Payments completed via Razorpay ✓
+Hermes: Talking to StyleBazaar... negotiating a bulk deal...
+  → StyleBazaar (LLM seller agent): opening offer ₹34,000 rejected — countered ₹37,500,
+    citing low stock on that colorway instead of just splitting the difference
+  → Round 2: buyer raises to ₹36,800 → seller accepts
+  Total: ₹36,800 (saved ₹3,200 through real agent-to-agent negotiation)
+  → Payment completed via Razorpay ✓
 ```
 
 ## 🏗️ Architecture
@@ -38,11 +37,11 @@ Hermes: Talking to 3 merchants... negotiating bulk deals... comparing prices...
 │  • Handles failures gracefully                    │
 └──────────┬───────────┬───────────┬──────────────┘
            │           │           │
-    ┌──────▼───┐ ┌─────▼────┐ ┌───▼──────┐
-    │ FestKart │ │ PrintBoss│ │CaterCloud│
-    │ Seller   │ │ Seller   │ │ Seller   │
-    │ Agent    │ │ Agent    │ │ Agent    │
-    └──────┬───┘ └─────┬────┘ └───┬──────┘
+    ┌──────▼─────┐ ┌───▼──────┐ ┌──▼───────┐
+    │StyleBazaar │ │GadgetStore│ │ GlowMart │
+    │ Seller     │ │ Seller    │ │ Seller   │
+    │ 🧠 LLM     │ │⚙️ Rule-based│ │⚙️ Rule-based│
+    └──────┬─────┘ └─────┬────┘ └───┬──────┘
            │           │           │
     ┌──────▼───────────▼───────────▼──────┐
     │         RAZORPAY TEST-MODE API       │
@@ -66,9 +65,10 @@ agentpay-protocol/
 │   └── spec.py         # Protocol message types & schema
 ├── merchants/          # Merchant SDK + demo merchants
 │   ├── sdk.py          # MerchantSDK - 5 lines to make any store agent-ready
-│   ├── festkart.py     # Demo: merch & apparel store
-│   ├── printboss.py    # Demo: printing services
-│   └── catercloud.py   # Demo: catering & food packages
+│   ├── llm_agent.py     # LLMMerchantAgent - real LLM seller negotiation, used by StyleBazaar
+│   ├── stylebazaar.py   # Demo: fashion store (LLM-powered negotiation)
+│   ├── gadgetstore.py   # Demo: electronics store (rule-based negotiation)
+│   └── glowmart.py      # Demo: beauty store (rule-based negotiation)
 ├── agents/             # AI agents
 │   ├── buyer.py        # The buyer agent - the star of the show
 │   └── llm.py          # LLM interface (Groq/Llama)
