@@ -355,7 +355,25 @@
   .retry-btn:hover { background: var(--red-tint); }
 
   /* ══════════════════════════ INPUT AREA ══════════════════════════ */
-  .input-bar { flex-shrink: 0; padding: 8px 16px 18px; display: flex; justify-content: center; background: var(--bg-chat); }
+  .input-bar { flex-shrink: 0; padding: 8px 16px 18px; display: flex; flex-direction: column; align-items: center; background: var(--bg-chat); }
+  .input-avatar-wrap { display: flex; justify-content: center; padding-bottom: 8px; }
+  .input-avatar {
+    width: 34px; height: 34px; border-radius: 50%; position: relative;
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 14px;
+    box-shadow: 0 3px 10px rgba(0,153,127,.25);
+  }
+  .input-avatar .ring { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid transparent; opacity: 0; }
+  .input-avatar .ring2 { inset: -11px; }
+  .input-avatar.idle .ring { opacity: 0; }
+  .input-avatar.speaking .ring { border-color: var(--accent); animation: ringPulseSmall 1.3s infinite; }
+  .input-avatar.speaking .ring2 { border-color: var(--accent); animation: ringPulseSmall 1.3s infinite .3s; }
+  .input-avatar.listening .ring { border-color: var(--red); animation: ringPulseSmall .9s infinite; }
+  .input-avatar.listening .ring2 { border-color: var(--red); animation: ringPulseSmall .9s infinite .2s; }
+  .input-avatar.thinking .ring { opacity: 1; border-style: dashed; border-color: var(--yellow); animation: ringSpin 1s linear infinite; }
+  @keyframes ringPulseSmall { 0% { transform: scale(.85); opacity: .8; } 100% { transform: scale(1.6); opacity: 0; } }
+  @keyframes ringSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
   .input-bar-inner { width: 100%; max-width: 680px; }
   .input-disclaimer { font-size: 11px; color: var(--text-dimmer); text-align: left; padding: 0 6px 7px; }
   .input-inner {
@@ -370,6 +388,25 @@
     max-height: 120px; padding: 8px 0;
   }
   .input-inner textarea::placeholder { color: var(--text-dimmer); }
+
+  /* ── inline voice-call state (Siri-style, lives inside the input bar) ── */
+  .voice-live { display: none; flex: 1; align-items: center; justify-content: center; gap: 12px; padding: 9px 0; }
+  .input-inner.voice-active textarea,
+  .input-inner.voice-active #micBtn,
+  .input-inner.voice-active #sendBtn { display: none; }
+  .input-inner.voice-active .voice-live { display: flex; }
+  .voice-wave { display: flex; align-items: center; gap: 3px; height: 22px; }
+  .voice-wave span { width: 3px; border-radius: 2px; background: var(--accent); height: 6px; animation: waveBounce 1s ease-in-out infinite; }
+  .voice-wave span:nth-child(1) { animation-delay: 0s; }
+  .voice-wave span:nth-child(2) { animation-delay: .12s; }
+  .voice-wave span:nth-child(3) { animation-delay: .24s; }
+  .voice-wave span:nth-child(4) { animation-delay: .36s; }
+  .voice-wave span:nth-child(5) { animation-delay: .48s; }
+  @keyframes waveBounce { 0%, 100% { height: 6px; } 50% { height: 22px; } }
+  .voice-live-status { font-size: 13px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+  .icon-btn.end-call-inline { display: none; background: var(--red); color: #fff; }
+  .icon-btn.end-call-inline:hover { background: #c22a4c; color: #fff; }
+  .input-inner.voice-active .end-call-inline { display: flex; }
 
   .icon-btn {
     width: 38px; height: 38px; border-radius: 50%; border: none; flex-shrink: 0;
@@ -514,43 +551,6 @@
   .pill-toggle.on { color: var(--accent); background: var(--accent-tint); border-color: transparent; }
   .pill-toggle.on .dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(0,153,127,.18); }
 
-  /* ══════════════════════════ VOICE OVERLAY ══════════════════════════ */
-  .voice-overlay {
-    position: fixed; inset: 0; background: rgba(8,8,16,.78); backdrop-filter: blur(8px);
-    display: flex; align-items: center; justify-content: center; z-index: 1000;
-    opacity: 0; pointer-events: none; transition: opacity .25s ease;
-  }
-  .voice-overlay.show { opacity: 1; pointer-events: auto; }
-  .voice-overlay-inner { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 20px; max-width: 480px; width: 100%; }
-  .voice-overlay-avatar {
-    width: 120px; height: 120px; border-radius: 50%; position: relative;
-    background: linear-gradient(135deg, var(--accent-2), var(--blue));
-    display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 44px;
-    box-shadow: 0 10px 40px rgba(0,153,127,.35);
-  }
-  .voice-overlay-avatar .ring { position: absolute; inset: -14px; border-radius: 50%; border: 2px solid transparent; opacity: 0; }
-  .voice-overlay-avatar .ring2 { inset: -28px; }
-  .voice-overlay-avatar.idle .ring { opacity: 0; }
-  .voice-overlay-avatar.speaking .ring { border-color: #fff; animation: ovRingPulse 1.3s infinite; }
-  .voice-overlay-avatar.speaking .ring2 { border-color: #fff; animation: ovRingPulse 1.3s infinite .3s; }
-  .voice-overlay-avatar.listening .ring { border-color: var(--red); animation: ovRingPulse .9s infinite; }
-  .voice-overlay-avatar.listening .ring2 { border-color: var(--red); animation: ovRingPulse .9s infinite .2s; }
-  .voice-overlay-avatar.thinking .ring { opacity: 1; border-style: dashed; border-color: var(--yellow); animation: ringSpin 1s linear infinite; }
-  @keyframes ovRingPulse { 0% { transform: scale(.85); opacity: .8; } 100% { transform: scale(1.35); opacity: 0; } }
-  @keyframes ringSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-  .voice-status { color: #fff; font-size: 14px; font-weight: 600; opacity: .85; }
-  .voice-transcript { display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; min-height: 50px; }
-  .voice-line { font-size: 16px; line-height: 1.5; max-width: 440px; }
-  .voice-line.agent { color: #fff; font-weight: 500; }
-  .voice-line.user { color: rgba(255,255,255,.6); font-style: italic; }
-  .end-call-btn {
-    width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--red); color: #fff;
-    font-size: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(224,51,92,.4);
-    transition: all .15s;
-  }
-  .end-call-btn:hover { filter: brightness(1.1); transform: scale(1.05); }
-
   elevenlabs-convai { display: none; }
 
   /* ══════════════════════════ MOBILE ══════════════════════════ */
@@ -630,12 +630,24 @@
     </div>
 
     <div class="input-bar">
+      <div class="input-avatar-wrap">
+        <div class="input-avatar idle" id="voiceOverlayAvatar">
+          <span class="core">H</span>
+          <span class="ring"></span>
+          <span class="ring ring2"></span>
+        </div>
+      </div>
       <div class="input-bar-inner">
         <p class="input-disclaimer">Hermes can make mistakes. Verify important info.</p>
-        <div class="input-inner">
+        <div class="input-inner" id="inputInner">
           <textarea id="chatInput" rows="1" placeholder="What are you looking for?"></textarea>
+          <div class="voice-live">
+            <div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div>
+            <span class="voice-live-status" id="voiceLiveStatus">Connecting…</span>
+          </div>
           <button class="icon-btn mic" id="micBtn" title="Click to talk, or press and hold" onpointerdown="micPointerDown(event)" onpointerup="micPointerUp(event)" onpointerleave="micPointerCancel(event)">🎤</button>
           <button class="icon-btn voice-call" id="voiceAgentBtn" onclick="startVoiceAgent()" disabled title="Start a live voice conversation with Hermes">🎙️<span class="vab-label" id="voiceAgentLabel">Talk to Hermes</span></button>
+          <button class="icon-btn end-call-inline" onclick="endVoiceCall()" title="End call">✕</button>
           <button class="icon-btn send" id="sendBtn" title="Send" onclick="submitChat()">➤</button>
         </div>
       </div>
@@ -676,22 +688,6 @@
       </button>
     </div>
     <div class="settings-note">Payments run in Razorpay Test Mode — no real money moves.</div>
-  </div>
-</div>
-
-<div class="voice-overlay" id="voiceOverlay" onclick="if(event.target===this) endVoiceOverlayCall()">
-  <div class="voice-overlay-inner" onclick="event.stopPropagation()">
-    <div class="voice-overlay-avatar idle" id="voiceOverlayAvatar">
-      <span class="core">H</span>
-      <span class="ring"></span>
-      <span class="ring ring2"></span>
-    </div>
-    <div class="voice-status" id="voiceOverlayStatus">Connecting…</div>
-    <div class="voice-transcript">
-      <p class="voice-line agent" id="voiceAgentLine"></p>
-      <p class="voice-line user" id="voiceUserLine"></p>
-    </div>
-    <button class="end-call-btn" onclick="endVoiceOverlayCall()" title="End call">✕</button>
   </div>
 </div>
 
@@ -889,7 +885,7 @@ async function init() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (document.getElementById('voiceOverlay').classList.contains('show')) { endVoiceOverlayCall(); return; }
+    if (document.getElementById('inputInner').classList.contains('voice-active')) { endVoiceCall(); return; }
     if (document.getElementById('settingsModal').classList.contains('show')) { closeSettings(); return; }
     if (document.getElementById('sidebar').classList.contains('mobile-open')) { closeMobileSidebar(); return; }
     if (document.getElementById('networkPanel').classList.contains('open')) { closeNetworkPanel(); }
@@ -1523,20 +1519,23 @@ function setAvatarState(state) {
   if (el2) { el2.classList.remove('idle', 'listening', 'thinking', 'speaking'); el2.classList.add(state); }
 }
 
-/* ═══════════════════════ VOICE OVERLAY ═══════════════════════ */
-function openVoiceOverlay() {
-  document.getElementById('voiceOverlay').classList.add('show');
-  document.getElementById('voiceOverlayStatus').textContent = 'Connecting…';
-  document.getElementById('voiceAgentLine').textContent = '';
-  document.getElementById('voiceUserLine').textContent = '';
+/* ═══════════════════════ INLINE VOICE-CALL UI (input bar) ═══════════════════════ */
+function updateVoiceLiveStatus(text) {
+  const el = document.getElementById('voiceLiveStatus');
+  if (el) el.textContent = text;
 }
-function closeVoiceOverlay() {
-  document.getElementById('voiceOverlay').classList.remove('show');
+function enterVoiceInputMode() {
+  document.getElementById('inputInner').classList.add('voice-active');
+  updateVoiceLiveStatus('Connecting…');
 }
-function endVoiceOverlayCall() {
+function exitVoiceInputMode() {
+  document.getElementById('inputInner').classList.remove('voice-active');
+  setAvatarState('idle');
+}
+function endVoiceCall() {
   const endBtn = shadowButton('End');
   if (endBtn) endBtn.click();
-  closeVoiceOverlay();
+  exitVoiceInputMode();
 }
 
 /* ═══════════════════════ ELEVENLABS VOICE AGENT ═══════════════════════ */
@@ -1554,21 +1553,21 @@ async function initVoiceAgent() {
     };
   });
 
-  // Best-effort live transcript hookup — if the embedded widget emits a
-  // message/transcript event under one of these names, mirror it into the
-  // full-screen voice overlay. If it doesn't, the overlay still works fine
-  // without the live transcript lines.
+  // Best-effort turn hookup — if the embedded widget emits a message/transcript
+  // event under one of these names, use it to flip the inline status label and
+  // avatar ring between "Listening…" and "Hermes is speaking…". If it doesn't,
+  // the inline voice UI still works fine with the generic "Connecting…" state.
   const onWidgetMessage = (event) => {
     const d = event.detail || {};
     const role = d.source || d.role || d.type || '';
     const text = d.message || d.text || d.transcript || '';
     if (!text) return;
     if (/user/i.test(role)) {
-      document.getElementById('voiceUserLine').textContent = text;
-      document.getElementById('voiceOverlayStatus').textContent = 'Listening…';
+      setAvatarState('listening');
+      updateVoiceLiveStatus('Listening…');
     } else {
-      document.getElementById('voiceAgentLine').textContent = text;
-      document.getElementById('voiceOverlayStatus').textContent = 'Hermes is speaking…';
+      setAvatarState('speaking');
+      updateVoiceLiveStatus('Hermes is speaking…');
     }
   };
   ['elevenlabs-convai:message', 'elevenlabs-convai:transcript', 'elevenlabs-convai:agent-response', 'elevenlabs-convai:user-transcript']
@@ -1611,12 +1610,12 @@ function watchVoiceAgentState() {
       document.getElementById('micBtn').disabled = true;
       btn.classList.add('active');
       label.textContent = 'End voice chat';
-      openVoiceOverlay();
+      enterVoiceInputMode();
     } else {
       document.getElementById('micBtn').disabled = false;
       btn.classList.remove('active');
       label.textContent = 'Talk to Hermes';
-      closeVoiceOverlay();
+      exitVoiceInputMode();
       resumeWakeWordSoon();
     }
   };
