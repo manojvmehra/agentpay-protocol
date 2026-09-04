@@ -208,7 +208,7 @@
       <button>⌕</button>
     </div>
     <div class="header-icons">
-      <a class="back-link" href="/">← AgentPay Chat</a>
+      <a class="back-link" href="/">← Hermes Chat</a>
       <div class="header-icon"><span>Hello, sign in</span><b>Returns &amp; Orders</b></div>
       <div class="header-icon cart-icon-row" onclick="showToast('Cart — items are placed via Buy Now, one order at a time.')">
         <span class="cart-count" id="cartCount">0</span><b>Cart</b>
@@ -278,7 +278,7 @@
 </div>
 
 <footer>
-  GadgetStore is Store 2 on the <a href="/">AgentPay Protocol</a> multi-store network — the AI buyer agent can discover and negotiate with this store too.
+  GadgetStore is Store 2 on the <a href="/">Hermes Protocol</a> multi-store network — the AI buyer agent can discover and negotiate with this store too.
 </footer>
 
 <!-- Product Detail Modal -->
@@ -631,7 +631,7 @@ function openCheckout(order, btnEl, resetLabel) {
     order_id: order.checkout.order_id,
     name: 'GadgetStore',
     description: `${order.name} × ${order.quantity}`,
-    prefill: { email: 'test@agentpay.com' },
+    prefill: { email: 'test@hermes.com' },
     theme: { color: '#ff9900' },
     handler: async function (response) {
       try {

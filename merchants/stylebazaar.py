@@ -1,6 +1,6 @@
 """
 StyleBazaar - Fashion & lifestyle store (Myntra-style)
-Demo merchant for AgentPay Protocol.
+Demo merchant for Hermes Protocol.
 
 Unlike the other event-supply stores, StyleBazaar sells individual retail
 items (min_order=1) with structured size/color attributes, and its combo

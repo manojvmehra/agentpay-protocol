@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AgentPay — AI Shopping Assistant</title>
+<title>Hermes — AI Shopping Assistant</title>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
 
@@ -24,6 +25,8 @@
     --red: #ff4466;
     --yellow: #ffcc00;
     --green: #00cc88;
+    --blue: #4488ff;
+    --orange: #ff9933;
   }
 
   html, body { height: 100%; overflow: hidden; }
@@ -246,10 +249,199 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  /* ══════════════ VOICE MODE TOGGLE ══════════════ */
+  .voice-toggle {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 600;
+    color: var(--text-dim); background: var(--surface-3);
+    padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+    white-space: nowrap; transition: all .15s;
+  }
+  .voice-toggle .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dimmer); flex-shrink: 0; }
+  .voice-toggle.on { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); }
+  .voice-toggle.on .dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+  /* ══════════════ SPEAKER / REPLAY BUTTON ══════════════ */
+  .bubble-with-speaker { display: flex; align-items: flex-start; gap: 2px; }
+  .speak-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 7px; border: none; background: transparent;
+    color: var(--text-dim); font-size: 12.5px; margin-top: 2px; flex-shrink: 0; transition: all .15s;
+  }
+  .speak-btn:hover { color: var(--accent); background: var(--accent-glow); }
+  .speak-btn.speaking { color: var(--accent); animation: speakPulse 1s infinite; }
+  @keyframes speakPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+  /* ══════════════ PER-MESSAGE AVATAR STATES ══════════════ */
+  .avatar.thinking { animation: avatarThinking 1.2s infinite; }
+  @keyframes avatarThinking { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+  .avatar.speaking { animation: avatarSpeak 1s infinite; }
+  @keyframes avatarSpeak {
+    0% { box-shadow: 0 0 0 0 rgba(0,212,170,.6); }
+    70% { box-shadow: 0 0 0 8px rgba(0,212,170,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,212,170,0); }
+  }
+
+  /* ══════════════ CENTRAL AGENT AVATAR ══════════════ */
+  .central-avatar-wrap { flex-shrink: 0; display: flex; justify-content: center; padding: 18px 0 2px; }
+  .central-avatar {
+    width: 60px; height: 60px; border-radius: 50%; position: relative;
+    background: linear-gradient(135deg, var(--accent), #4488ff);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; color: #06060a; font-size: 24px;
+  }
+  .central-avatar .ring {
+    position: absolute; inset: -7px; border-radius: 50%; border: 2px solid transparent; opacity: 0;
+  }
+  .central-avatar.idle .ring { opacity: 0; }
+  .central-avatar.speaking .ring { border-color: var(--accent); animation: ringPulse 1.3s infinite; }
+  .central-avatar.listening .ring { border-color: var(--red); animation: ringPulse .9s infinite; }
+  @keyframes ringPulse {
+    0% { transform: scale(.82); opacity: .9; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+  .central-avatar.thinking .ring {
+    opacity: 1; border-style: dashed; border-color: var(--yellow);
+    animation: ringSpin 1s linear infinite;
+  }
+  @keyframes ringSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* ══════════════ SPLIT LAYOUT ══════════════ */
+  .main-layout { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+  .chat-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  /* ══════════════ AGENT NETWORK PANEL ══════════════ */
+  .network-panel {
+    width: 380px; flex-shrink: 0; min-height: 0;
+    border-left: 1px solid var(--border); background: var(--surface);
+    display: flex; flex-direction: column;
+  }
+  .network-panel-header {
+    flex-shrink: 0; padding: 13px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .np-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .np-close {
+    display: none; width: 28px; height: 28px; border-radius: 8px; border: none;
+    background: var(--surface-3); color: var(--text-dim); font-size: 13px; align-items: center; justify-content: center;
+  }
+
+  .network-viz { position: relative; width: 100%; aspect-ratio: 1.6/1; max-height: 230px; flex-shrink: 0; padding: 10px 0; }
+  .net-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .net-line { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; transition: stroke .3s, opacity .3s; }
+  .net-line.active { stroke-width: 2; animation: linePulse 1s infinite; }
+  .net-line.active.blue { stroke: var(--blue); }
+  .net-line.active.orange { stroke: var(--orange); }
+  .net-line.active.yellow { stroke: var(--yellow); }
+  .net-line.active.green { stroke: var(--green); }
+  .net-line.active.red { stroke: var(--red); }
+  @keyframes linePulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+
+  .net-node {
+    position: absolute; transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: 3px; width: 52px;
+  }
+  .net-node-icon {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--surface-3);
+    border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--text-dim); transition: all .3s; flex-shrink: 0;
+  }
+  .net-node.buyer .net-node-icon {
+    width: 36px; height: 36px; font-size: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--blue)); color: #06060a; border-color: transparent;
+  }
+  .net-node-label {
+    font-size: 8.5px; color: var(--text-dimmer); text-align: center; line-height: 1.2;
+    max-width: 58px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .net-node.active .net-node-icon { transform: scale(1.18); }
+  .net-node.active.blue .net-node-icon { border-color: var(--blue); box-shadow: 0 0 14px var(--blue); color: var(--blue); }
+  .net-node.active.orange .net-node-icon { border-color: var(--orange); box-shadow: 0 0 14px var(--orange); color: var(--orange); }
+  .net-node.active.yellow .net-node-icon { border-color: var(--yellow); box-shadow: 0 0 14px var(--yellow); color: var(--yellow); }
+  .net-node.active.green .net-node-icon { border-color: var(--green); box-shadow: 0 0 14px var(--green); color: var(--green); }
+  .net-node.active.red .net-node-icon { border-color: var(--red); box-shadow: 0 0 14px var(--red); color: var(--red); }
+
+  .protocol-feed { flex: 1; overflow-y: auto; padding: 4px 14px 14px; display: flex; flex-direction: column-reverse; gap: 8px; }
+  .protocol-idle {
+    text-align: center; color: var(--text-dimmer); padding: 34px 10px 10px;
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+  }
+  .protocol-idle .idle-icon { font-size: 26px; opacity: .5; }
+  .protocol-idle p { font-size: 12.5px; }
+
+  .pm-card {
+    border-left: 3px solid var(--border); background: var(--surface-2); border-radius: 8px;
+    padding: 9px 11px; opacity: 0; transform: translateY(-14px);
+    transition: opacity .3s ease, transform .3s ease;
+  }
+  .pm-card.show { opacity: 1; transform: translateY(0); }
+  .pm-card.blue { border-left-color: var(--blue); }
+  .pm-card.orange { border-left-color: var(--orange); }
+  .pm-card.yellow { border-left-color: var(--yellow); }
+  .pm-card.green { border-left-color: var(--green); }
+  .pm-card.red { border-left-color: var(--red); }
+  .pm-card.pm-glow.blue { box-shadow: 0 0 14px rgba(68,136,255,.35); }
+  .pm-card.pm-glow.green { box-shadow: 0 0 14px rgba(0,204,136,.35); }
+  .pm-card.pm-glow.red { box-shadow: 0 0 14px rgba(255,68,102,.35); }
+  .pm-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .pm-type { font-weight: 700; font-size: 10.5px; }
+  .pm-time { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--text-dimmer); flex-shrink: 0; }
+  .pm-route { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
+  .pm-arrow { color: var(--text-dimmer); margin: 0 3px; }
+  .pm-summary { font-size: 11.5px; line-height: 1.4; }
+
+  /* ══════════════ MOBILE NETWORK OVERLAY ══════════════ */
+  .mobile-network-btn {
+    display: none; position: fixed; bottom: 90px; right: 16px; z-index: 400;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 16px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0,0,0,.45); align-items: center; gap: 6px;
+  }
+
+  @media (max-width: 900px) {
+    .network-panel {
+      position: fixed; inset: 0; z-index: 500; width: 100%;
+      transform: translateX(100%); transition: transform .3s ease;
+    }
+    .network-panel.open { transform: translateX(0); }
+    .np-close { display: flex; }
+    .mobile-network-btn { display: flex; }
+  }
+
   @media (max-width: 600px) {
     .product-card { flex: 0 0 155px; }
     header { padding: 12px 14px; }
     .badge { display: none; }
+    .voice-toggle span:not(.dot) { display: none; }
+  }
+
+  /* ══════════════ ELEVENLABS VOICE AGENT BUTTON ══════════════ */
+  elevenlabs-convai { display: none; }
+  .voice-agent-btn {
+    position: fixed; bottom: 24px; right: 24px; z-index: 700;
+    display: flex; align-items: center; gap: 9px;
+    padding: 13px 20px 13px 16px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 13.5px; font-weight: 700;
+    box-shadow: 0 8px 28px rgba(0,0,0,.5); transition: all .2s;
+  }
+  .voice-agent-btn:hover:not(:disabled) { border-color: var(--accent); box-shadow: 0 8px 28px rgba(0,212,170,.25); }
+  .voice-agent-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .voice-agent-btn .vab-orb {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .voice-agent-btn.active {
+    border-color: var(--accent); background: var(--accent-glow); color: var(--accent);
+  }
+  .voice-agent-btn.active .vab-orb { animation: avatarSpeak 1s infinite; }
+
+  @media (max-width: 900px) {
+    .voice-agent-btn { bottom: 148px; right: 16px; }
+  }
+  @media (max-width: 600px) {
+    .voice-agent-btn { padding: 11px 16px 11px 12px; font-size: 12.5px; }
+    .voice-agent-btn span.vab-label { display: none; }
   }
 </style>
 </head>
@@ -257,34 +449,69 @@
 
 <header>
   <div class="logo-block">
-    <div class="logo-icon">A</div>
+    <div class="logo-icon">H</div>
     <div class="logo-text">
-      <div class="name-row"><span class="online-dot"></span>AgentPay</div>
+      <div class="name-row"><span class="online-dot"></span>Hermes</div>
       <div class="sub" id="storeCountText">Connecting to stores…</div>
     </div>
   </div>
   <div class="header-right">
+    <button class="voice-toggle" id="voiceToggle" onclick="toggleVoiceMode()" title="Toggle spoken responses">
+      <span class="dot"></span><span id="voiceToggleLabel">VOICE MODE: OFF</span>
+    </button>
     <span class="badge">RAZORPAY TEST MODE</span>
   </div>
 </header>
 
-<div class="chat-scroll" id="chatScroll">
-  <div class="chat-col" id="chatCol">
-    <div class="welcome" id="welcome">
-      <div class="icon">🛍️</div>
-      <h2>Hi, I'm AgentPay</h2>
-      <p>Tell me what you're looking for and I'll find it, negotiate the best price, and check you out — right here in chat. Try "I want to buy a shirt" or just say hi.</p>
+<div class="main-layout">
+  <div class="chat-panel">
+    <div class="central-avatar-wrap">
+      <div class="central-avatar idle" id="centralAvatar">
+        <span class="core">H</span>
+        <span class="ring"></span>
+      </div>
+    </div>
+
+    <div class="chat-scroll" id="chatScroll">
+      <div class="chat-col" id="chatCol">
+        <div class="welcome" id="welcome">
+          <div class="icon">🛍️</div>
+          <h2>Hi, I'm Hermes</h2>
+          <p>Tell me what you're looking for and I'll find it, negotiate the best price, and check you out — right here in chat. Try "I want to buy a shirt" or just say hi.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-inner">
+        <textarea id="chatInput" rows="1" placeholder="Message Hermes…"></textarea>
+        <button class="icon-btn mic" id="micBtn" title="Click to talk, or press and hold" onpointerdown="micPointerDown(event)" onpointerup="micPointerUp(event)" onpointerleave="micPointerCancel(event)">🎤</button>
+        <button class="icon-btn send" id="sendBtn" title="Send" onclick="submitChat()">➤</button>
+      </div>
     </div>
   </div>
+
+  <aside class="network-panel" id="networkPanel">
+    <div class="network-panel-header">
+      <span class="np-title">🔗 Agent Network</span>
+      <button class="np-close" id="npClose" onclick="closeMobileNetwork()" title="Close">✕</button>
+    </div>
+    <div class="network-viz" id="networkViz"></div>
+    <div class="protocol-feed" id="protocolFeed">
+      <div class="protocol-idle" id="protocolIdle">
+        <div class="idle-icon">🛰️</div>
+        <p>Waiting for a shopping request…</p>
+      </div>
+    </div>
+  </aside>
 </div>
 
-<div class="input-bar">
-  <div class="input-inner">
-    <textarea id="chatInput" rows="1" placeholder="Message AgentPay…"></textarea>
-    <button class="icon-btn mic" id="micBtn" title="Voice input" onclick="toggleMic()">🎤</button>
-    <button class="icon-btn send" id="sendBtn" title="Send" onclick="submitChat()">➤</button>
-  </div>
-</div>
+<button class="mobile-network-btn" id="mobileNetworkBtn" onclick="openMobileNetwork()">🔗 View Agent Network</button>
+
+<button class="voice-agent-btn" id="voiceAgentBtn" onclick="startVoiceAgent()" disabled title="Start a live voice conversation with Hermes">
+  <span class="vab-orb">🎙️</span><span class="vab-label" id="voiceAgentLabel">Talk to Hermes</span>
+</button>
+<elevenlabs-convai id="elevenlabsWidget"></elevenlabs-convai>
 
 <div class="toast" id="toast"></div>
 
@@ -293,6 +520,7 @@ const API = window.location.origin;
 let sessionId = null;
 let razorpayKeyId = null;
 let isRunning = false;
+let lastOrderSummary = null;
 
 /* ═══════════════════════ INIT ═══════════════════════ */
 async function init() {
@@ -300,8 +528,10 @@ async function init() {
   loadStoreCount();
   loadConfig();
   initVoice();
+  initVoiceOutput();
   document.getElementById('chatInput').addEventListener('keydown', onChatKeydown);
   document.getElementById('chatInput').addEventListener('input', autosizeInput);
+  initVoiceAgent();
 }
 
 async function loadStoreCount() {
@@ -309,9 +539,16 @@ async function loadStoreCount() {
     const res = await fetch(`${API}/api/merchants`);
     const data = await res.json();
     document.getElementById('storeCountText').textContent = `Connected to ${data.total} store${data.total === 1 ? '' : 's'}`;
+    sendWelcomeMessage(data.total);
+    buildNetwork(data.merchants || []);
   } catch (e) {
     document.getElementById('storeCountText').textContent = 'Store connection unavailable';
   }
+}
+
+function sendWelcomeMessage(total) {
+  const text = `Hey! I'm Hermes, your AI shopping assistant. I'm connected to ${total} store${total === 1 ? '' : 's'}. Tell me what you're looking for — or click the mic and talk to me!`;
+  renderAgentMessage({ type: 'text', content: text });
 }
 
 async function loadConfig() {
@@ -349,11 +586,12 @@ function addUserBubble(text) {
 }
 
 function addTypingIndicator() {
+  setAvatarState('thinking');
   const col = document.getElementById('chatCol');
   const row = document.createElement('div');
   row.className = 'msg-row agent';
   row.id = 'typingRow';
-  row.innerHTML = `<div class="avatar">A</div><div class="bubble-stack"><div class="bubble typing-bubble"><span></span><span></span><span></span></div></div>`;
+  row.innerHTML = `<div class="avatar thinking">H</div><div class="bubble-stack"><div class="bubble typing-bubble"><span></span><span></span><span></span></div></div>`;
   col.appendChild(row);
   scrollToBottom();
 }
@@ -383,6 +621,7 @@ async function submitChat() {
 async function sendMessage(text) {
   if (isRunning) return;
   isRunning = true;
+  stopSpeaking();
   document.getElementById('sendBtn').disabled = true;
 
   if (!text.startsWith('__BUY_NOW__:')) addUserBubble(text);
@@ -397,7 +636,9 @@ async function sendMessage(text) {
     const data = await res.json();
     sessionId = data.session_id;
     removeTypingIndicator();
+    setAvatarState('idle');
     (data.messages || []).forEach(renderAgentMessage);
+    playProtocolMessages(data.protocol_messages || []);
   } catch (e) {
     removeTypingIndicator();
     renderAgentMessage({ type: 'text', content: `Something went wrong: ${e.message}` });
@@ -413,7 +654,7 @@ function agentRow(innerHtml) {
   const col = document.getElementById('chatCol');
   const row = document.createElement('div');
   row.className = 'msg-row agent';
-  row.innerHTML = `<div class="avatar">A</div><div class="bubble-stack">${innerHtml}</div>`;
+  row.innerHTML = `<div class="avatar">H</div><div class="bubble-stack">${innerHtml}</div>`;
   col.appendChild(row);
   scrollToBottom();
   return row;
@@ -422,7 +663,16 @@ function agentRow(innerHtml) {
 function renderAgentMessage(msg) {
   const type = msg.type, content = msg.content;
   if (type === 'text') {
-    agentRow(`<div class="bubble">${escapeHtml(content)}</div>`);
+    const row = agentRow(`
+      <div class="bubble-with-speaker">
+        <div class="bubble">${escapeHtml(content)}</div>
+        ${TTS_SUPPORTED ? `<button class="speak-btn" onclick="speakFromButton(this)" title="Play voice">🔊</button>` : ''}
+      </div>
+    `);
+    const btn = row.querySelector('.speak-btn');
+    const avatarEl = row.querySelector('.avatar');
+    if (btn) btn.dataset.text = content || '';
+    if (voiceModeEnabled) speakText(content, btn, avatarEl);
   } else if (type === 'options') {
     renderOptions(content);
   } else if (type === 'product_cards') {
@@ -517,6 +767,7 @@ function renderComparison(content) {
 }
 
 function renderOrderSummary(content) {
+  lastOrderSummary = content;
   const failed = content.payment_status !== 'success' || !content.checkout;
   const rowId = 'order-' + Math.random().toString(36).slice(2, 9);
   const row = agentRow(`
@@ -541,6 +792,7 @@ function renderOrderSummary(content) {
 /* ═══════════════════════ RAZORPAY CHECKOUT ═══════════════════════ */
 function payForOrder(orderSummary, btnEl) {
   if (!razorpayKeyId) { showToast('Payment isn\'t ready yet — try again in a second.'); return; }
+  stopSpeaking();
   btnEl.disabled = true;
   btnEl.textContent = 'Opening Razorpay…';
 
@@ -550,9 +802,9 @@ function payForOrder(orderSummary, btnEl) {
     amount: checkout.amount,
     currency: checkout.currency,
     order_id: checkout.order_id,
-    name: 'AgentPay Protocol',
+    name: 'Hermes Protocol',
     description: `AI Agent Commerce — ${orderSummary.merchant}`,
-    prefill: { email: 'test@agentpay.com' },
+    prefill: { email: 'test@hermes.com' },
     theme: { color: '#00d4aa' },
     handler: async function (response) {
       try {
@@ -643,12 +895,14 @@ function initVoice() {
   };
   recognition.onend = () => {
     micBtn.classList.remove('listening');
+    setAvatarState('idle');
     clearTimeout(silenceTimer);
     const text = document.getElementById('chatInput').value.trim();
     if (text) submitChat();
   };
   recognition.onerror = () => {
     micBtn.classList.remove('listening');
+    setAvatarState('idle');
     clearTimeout(silenceTimer);
   };
 }
@@ -658,20 +912,425 @@ function resetSilenceTimer() {
   silenceTimer = setTimeout(() => { if (recognition) recognition.stop(); }, 2000);
 }
 
-function toggleMic() {
+function startListening() {
   if (!recognition) { showToast('Voice input isn\'t supported in this browser.'); return; }
   const micBtn = document.getElementById('micBtn');
+  if (micBtn.classList.contains('listening') || micBtn.disabled) return;
+  document.getElementById('chatInput').value = '';
+  try {
+    recognition.start();
+    micBtn.classList.add('listening');
+    setAvatarState('listening');
+    resetSilenceTimer();
+  } catch (e) { /* already started */ }
+}
+
+function stopListening() {
+  if (recognition) recognition.stop();
+}
+
+function toggleMic() {
+  const micBtn = document.getElementById('micBtn');
   if (micBtn.classList.contains('listening')) {
-    recognition.stop();
+    stopListening();
   } else {
-    document.getElementById('chatInput').value = '';
-    try {
-      recognition.start();
-      micBtn.classList.add('listening');
-      resetSilenceTimer();
-    } catch (e) { /* already started */ }
+    startListening();
   }
 }
+
+/* ── hold-to-talk: quick tap = click-toggle, press-and-hold = talk-while-held ── */
+let micPressTimer = null;
+let micHoldMode = false;
+const MIC_HOLD_THRESHOLD_MS = 300;
+
+function micPointerDown(e) {
+  e.preventDefault();
+  micHoldMode = false;
+  clearTimeout(micPressTimer);
+  micPressTimer = setTimeout(() => {
+    micHoldMode = true;
+    startListening();
+  }, MIC_HOLD_THRESHOLD_MS);
+}
+
+function micPointerUp(e) {
+  e.preventDefault();
+  clearTimeout(micPressTimer);
+  if (micHoldMode) {
+    stopListening();
+    micHoldMode = false;
+  } else {
+    toggleMic();
+  }
+}
+
+function micPointerCancel(e) {
+  clearTimeout(micPressTimer);
+  if (micHoldMode) {
+    stopListening();
+    micHoldMode = false;
+  }
+}
+
+/* ═══════════════════════ VOICE OUTPUT (SpeechSynthesis) ═══════════════════════ */
+const TTS_SUPPORTED = 'speechSynthesis' in window;
+let voiceModeEnabled = false;
+let preferredVoice = null;
+let currentUtterance = null;
+let currentSpeakBtn = null;
+
+function initVoiceOutput() {
+  if (!TTS_SUPPORTED) {
+    const toggle = document.getElementById('voiceToggle');
+    if (toggle) toggle.style.display = 'none';
+    return;
+  }
+  const loadVoices = () => {
+    const voices = speechSynthesis.getVoices();
+    preferredVoice =
+      voices.find(v => v.lang === 'en-IN' && /female/i.test(v.name)) ||
+      voices.find(v => v.lang === 'en-IN') ||
+      voices.find(v => /^en/i.test(v.lang) && /female/i.test(v.name)) ||
+      voices.find(v => /^en/i.test(v.lang)) ||
+      voices[0] || null;
+  };
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+function toggleVoiceMode() {
+  voiceModeEnabled = !voiceModeEnabled;
+  const btn = document.getElementById('voiceToggle');
+  btn.classList.toggle('on', voiceModeEnabled);
+  document.getElementById('voiceToggleLabel').textContent = `VOICE MODE: ${voiceModeEnabled ? 'ON' : 'OFF'}`;
+  if (!voiceModeEnabled) stopSpeaking();
+}
+
+let speechQueue = [];
+
+function stopSpeaking() {
+  speechQueue = [];
+  if (TTS_SUPPORTED) speechSynthesis.cancel();
+  if (currentSpeakBtn) currentSpeakBtn.classList.remove('speaking');
+  currentUtterance = null;
+  currentSpeakBtn = null;
+  document.getElementById('micBtn').disabled = false;
+  setAvatarState('idle');
+}
+
+// A single agent turn can contain several text bubbles (e.g. one per item in a
+// multi-item search). Queue them instead of cancelling in-flight speech, or every
+// bubble but the last gets cut off before it's ever heard.
+function speakText(text, btnEl, avatarEl) {
+  if (!TTS_SUPPORTED || !text) return;
+  speechQueue.push({ text, btnEl, avatarEl });
+  if (!currentUtterance) playNextInQueue();
+}
+
+function playNextInQueue() {
+  const next = speechQueue.shift();
+  if (!next) {
+    currentUtterance = null;
+    currentSpeakBtn = null;
+    document.getElementById('micBtn').disabled = false;
+    setAvatarState('idle');
+    return;
+  }
+  const { text, btnEl, avatarEl } = next;
+  const utter = new SpeechSynthesisUtterance(text);
+  if (preferredVoice) { utter.voice = preferredVoice; utter.lang = preferredVoice.lang; }
+  else { utter.lang = 'en-IN'; }
+  utter.rate = 1.0;
+  utter.pitch = 1.0;
+  currentUtterance = utter;
+  currentSpeakBtn = btnEl || null;
+  if (btnEl) btnEl.classList.add('speaking');
+  if (avatarEl) avatarEl.classList.add('speaking');
+  setAvatarState('speaking');
+  document.getElementById('micBtn').disabled = true;
+  const cleanup = () => {
+    if (btnEl) btnEl.classList.remove('speaking');
+    if (avatarEl) avatarEl.classList.remove('speaking');
+    playNextInQueue();
+  };
+  utter.onend = cleanup;
+  utter.onerror = cleanup;
+  speechSynthesis.speak(utter);
+}
+
+function speakFromButton(btnEl) {
+  if (currentSpeakBtn === btnEl && TTS_SUPPORTED && speechSynthesis.speaking) { stopSpeaking(); return; }
+  stopSpeaking();
+  const text = btnEl.dataset.text || '';
+  const avatarEl = btnEl.closest('.msg-row')?.querySelector('.avatar');
+  speakText(text, btnEl, avatarEl);
+}
+
+function setAvatarState(state) {
+  const el = document.getElementById('centralAvatar');
+  if (!el) return;
+  el.classList.remove('idle', 'listening', 'thinking', 'speaking');
+  el.classList.add(state);
+}
+
+/* ═══════════════════════ ELEVENLABS VOICE AGENT ═══════════════════════ */
+// Real-time voice conversation via the ElevenLabs widget, wired to our own
+// backend through client tools (the widget runs in the browser, so it can
+// reach our localhost API — a server-side webhook tool from ElevenLabs'
+// cloud could not). search_products drives the same /api/chat conversation
+// session as text chat, so product cards / order summaries render here in
+// the chat panel exactly as they do for typed messages; checkout reuses the
+// existing Razorpay flow. Voice narrates, the screen shows the real thing.
+let elWidget = null;
+let voiceAgentActive = false;
+
+async function initVoiceAgent() {
+  elWidget = document.getElementById('elevenlabsWidget');
+  const btn = document.getElementById('voiceAgentBtn');
+
+  // Configure the client tools the agent can call. Must be attached before
+  // the call starts — this event fires each time a conversation is initiated.
+  elWidget.addEventListener('elevenlabs-convai:call', (event) => {
+    event.detail.config.clientTools = {
+      search_products: voiceSearchProducts,
+      checkout: voiceCheckout,
+    };
+  });
+
+  try {
+    const res = await fetch(`${API}/api/voice-config`);
+    const data = await res.json();
+    if (data.voice_enabled && data.agent_id) {
+      elWidget.setAttribute('agent-id', data.agent_id);
+      await customElements.whenDefined('elevenlabs-convai');
+      watchVoiceAgentState();
+      btn.disabled = false;
+    } else {
+      btn.style.display = 'none';
+    }
+  } catch (e) {
+    btn.style.display = 'none';
+  }
+}
+
+// The widget's public custom-element API doesn't expose a startConversation()
+// method or conversationStarted/Ended events in the currently shipped build —
+// its call controls only exist as buttons inside its shadow DOM (the element
+// itself stays display:none; we replace its visuals with our own button and
+// the existing chat panel). We drive both the click and the active/inactive
+// state off those shadow-DOM buttons directly.
+function shadowButton(label) {
+  if (!elWidget || !elWidget.shadowRoot) return null;
+  return Array.from(elWidget.shadowRoot.querySelectorAll('button'))
+    .find(b => b.getAttribute('aria-label') === label);
+}
+
+function watchVoiceAgentState() {
+  if (!elWidget.shadowRoot) return;
+  const sync = () => {
+    const active = !!shadowButton('End');
+    if (active === voiceAgentActive) return;
+    voiceAgentActive = active;
+    const btn = document.getElementById('voiceAgentBtn');
+    const label = document.getElementById('voiceAgentLabel');
+    if (active) {
+      stopSpeaking();   // don't let browser TTS and the voice agent talk over each other
+      stopListening();  // don't let the Web Speech mic and the voice agent listen at once
+      document.getElementById('micBtn').disabled = true;
+      btn.classList.add('active');
+      label.textContent = 'End voice chat';
+    } else {
+      document.getElementById('micBtn').disabled = false;
+      btn.classList.remove('active');
+      label.textContent = 'Talk to Hermes';
+    }
+  };
+  new MutationObserver(sync).observe(elWidget.shadowRoot, { childList: true, subtree: true });
+}
+
+function startVoiceAgent() {
+  const endBtn = shadowButton('End');
+  if (endBtn) { endBtn.click(); return; }
+  const startBtn = shadowButton('Start a call');
+  if (startBtn) startBtn.click();
+}
+
+// Client tool: the voice agent calls this to search our real catalogs. It
+// reuses the same conversational session as text chat (same session_id), so
+// negotiation/checkout state carries over between voice and typed turns.
+async function voiceSearchProducts({ query }) {
+  try {
+    const res = await fetch(`${API}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: query, session_id: sessionId }),
+    });
+    const data = await res.json();
+    sessionId = data.session_id;
+    const messages = data.messages || [];
+    messages.forEach(renderAgentMessage);
+    playProtocolMessages(data.protocol_messages || []);
+    return summarizeMessagesForVoice(messages);
+  } catch (e) {
+    return `The search failed: ${e.message}`;
+  }
+}
+
+// Client tool: the voice agent calls this only after the user verbally
+// confirms a purchase. It opens the exact same Razorpay modal the Buy Now /
+// text-chat flow uses, for whichever order was last shown on screen.
+async function voiceCheckout() {
+  if (!lastOrderSummary) {
+    return "There is no order ready to check out yet — search for and confirm a product first.";
+  }
+  const fakeBtn = document.createElement('button');
+  payForOrder(lastOrderSummary, fakeBtn);
+  return `Opening the Razorpay checkout window for ₹${(lastOrderSummary.total || 0).toLocaleString()} now. Tell the user to complete payment in that window.`;
+}
+
+// Collapse the same rich message types the chat panel renders into a short
+// spoken summary, since the voice agent can only speak text back, not cards.
+function summarizeMessagesForVoice(messages) {
+  const parts = [];
+  for (const msg of messages) {
+    const c = msg.content;
+    if (msg.type === 'text') {
+      if (c) parts.push(c);
+    } else if (msg.type === 'product_cards') {
+      const items = (c || []).slice(0, 4).map(p => `${p.name} for ${Math.round(p.price || 0)} rupees at ${p.merchant}`);
+      if (items.length) parts.push(`Found: ${items.join('; ')}.`);
+    } else if (msg.type === 'comparison') {
+      const items = (c?.items || []).map(p => `${p.name} at ${p.merchant} for ${Math.round(p.price || 0)} rupees`);
+      if (items.length) parts.push(`Comparison: ${items.join('; ')}.`);
+    } else if (msg.type === 'order_summary') {
+      parts.push(`Order ready: ${(c.items || []).length} item(s), total ${Math.round(c.total || 0)} rupees. Ask the user to confirm before checking out.`);
+    } else if (msg.type === 'payment_status') {
+      parts.push(c.status === 'success' ? 'Payment succeeded.' : `Payment failed: ${c.error || 'unknown error'}.`);
+    } else if (msg.type === 'options') {
+      parts.push(`${c.question} Options: ${(c.options || []).join(', ')}.`);
+    }
+  }
+  return parts.length ? parts.join(' ') : 'No matching products were found.';
+}
+
+/* ═══════════════════════ AGENT NETWORK VISUALIZATION ═══════════════════════ */
+// Maps a protocol message "sender"/"receiver" display name (e.g. "FestKart",
+// "Buyer Agent", "Razorpay") to the DOM node id used in the network viz.
+let nodeIdByName = {};
+const COLOR_CLASSES = ['blue', 'orange', 'yellow', 'green', 'red'];
+const PM_STYLE = {
+  'catalog.request':   { cls: 'blue',   glow: false, label: '📇 Catalog Request' },
+  'catalog.response':  { cls: 'blue',   glow: false, label: '📇 Catalog Response' },
+  'negotiate.offer':   { cls: 'orange', glow: false, label: '🤝 Offer' },
+  'negotiate.counter': { cls: 'yellow', glow: false, label: '🔁 Counter' },
+  'negotiate.accept':  { cls: 'green',  glow: false, label: '✅ Accepted' },
+  'negotiate.reject':  { cls: 'red',    glow: false, label: '❌ Rejected' },
+  'payment.initiate':  { cls: 'blue',   glow: true,  label: '💳 Payment Initiated' },
+  'payment.success':   { cls: 'green',  glow: true,  label: '✅ Payment Success' },
+  'payment.failed':    { cls: 'red',    glow: true,  label: '⚠️ Payment Failed' },
+  'error':             { cls: 'red',    glow: false, label: '⚠️ Error' },
+};
+
+function buildNetwork(merchants) {
+  nodeIdByName = { 'Buyer Agent': 'buyer', 'Razorpay': 'razorpay' };
+  const nodes = [
+    { id: 'buyer', name: 'Buyer Agent', kind: 'buyer', icon: 'H' },
+    ...merchants.map(m => ({ id: m.id, name: m.name, kind: 'merchant', icon: (m.name || '?').charAt(0) })),
+    { id: 'razorpay', name: 'Razorpay', kind: 'gateway', icon: '💳' },
+  ];
+  merchants.forEach(m => { nodeIdByName[m.name] = m.id; });
+
+  const others = nodes.filter(n => n.kind !== 'buyer');
+  const positions = { buyer: { x: 50, y: 50 } };
+  // network-viz is wider than tall (aspect-ratio 1.6/1 in CSS), so 1% of width is
+  // fewer px than 1% of height — shrink the x radius by that ratio to keep the ring
+  // visually circular instead of bulging past the panel's edges.
+  const RY = 36, RX = RY / 1.6;
+  others.forEach((n, i) => {
+    const angle = (2 * Math.PI * i / others.length) - Math.PI / 2;
+    positions[n.id] = { x: 50 + RX * Math.cos(angle), y: 50 + RY * Math.sin(angle) };
+  });
+
+  const buyerPos = positions.buyer;
+  const linesSvg = others.map(n => {
+    const p = positions[n.id];
+    return `<line id="line-${n.id}" class="net-line" x1="${buyerPos.x}" y1="${buyerPos.y}" x2="${p.x}" y2="${p.y}" />`;
+  }).join('');
+
+  const nodesHtml = nodes.map(n => {
+    const p = positions[n.id];
+    return `<div class="net-node ${n.kind}" id="node-${n.id}" style="left:${p.x}%; top:${p.y}%;" title="${escapeHtml(n.name)}">
+      <span class="net-node-icon">${escapeHtml(n.icon)}</span>
+      <span class="net-node-label">${escapeHtml(n.name)}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('networkViz').innerHTML =
+    `<svg class="net-svg" viewBox="0 0 100 100" preserveAspectRatio="none">${linesSvg}</svg>${nodesHtml}`;
+}
+
+const highlightTimers = {};
+function highlightNetworkLink(nodeId, msgType) {
+  const style = PM_STYLE[msgType] || { cls: 'blue' };
+  const line = document.getElementById(`line-${nodeId}`);
+  const node = document.getElementById(`node-${nodeId}`);
+  const buyerNode = document.getElementById('node-buyer');
+  [line, node, buyerNode].forEach(el => {
+    if (!el) return;
+    COLOR_CLASSES.forEach(c => el.classList.remove(c));
+    el.classList.add('active', style.cls);
+  });
+  clearTimeout(highlightTimers[nodeId]);
+  highlightTimers[nodeId] = setTimeout(() => {
+    [line, node, buyerNode].forEach(el => {
+      if (!el) return;
+      el.classList.remove('active');
+      COLOR_CLASSES.forEach(c => el.classList.remove(c));
+    });
+  }, 2200);
+}
+
+function renderProtocolMessage(pm) {
+  document.getElementById('protocolIdle')?.remove();
+  const style = PM_STYLE[pm.type] || { cls: 'blue', glow: false, label: pm.type };
+  const feed = document.getElementById('protocolFeed');
+  const el = document.createElement('div');
+  el.className = `pm-card ${style.cls}${style.glow ? ' pm-glow' : ''}`;
+  el.innerHTML = `
+    <div class="pm-top">
+      <span class="pm-type">${style.label}</span>
+      <span class="pm-time">${escapeHtml(pm.timestamp || '')}</span>
+    </div>
+    <div class="pm-route">${escapeHtml(pm.sender)} <span class="pm-arrow">→</span> ${escapeHtml(pm.receiver)}</div>
+    <div class="pm-summary">${escapeHtml(pm.summary || '')}</div>
+  `;
+  feed.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+
+  const otherName = pm.sender === 'Buyer Agent' ? pm.receiver : pm.sender;
+  const nodeId = nodeIdByName[otherName];
+  if (nodeId) highlightNetworkLink(nodeId, pm.type);
+}
+
+// Stagger message cards in so the feed reads like a live agent-to-agent conversation
+// instead of dumping the whole turn's protocol trace in at once.
+function playProtocolMessages(msgs) {
+  msgs.forEach((pm, i) => setTimeout(() => renderProtocolMessage(pm), i * 260));
+}
+
+function openMobileNetwork() { document.getElementById('networkPanel').classList.add('open'); }
+function closeMobileNetwork() { document.getElementById('networkPanel').classList.remove('open'); }
+
+(function initNetworkSwipe() {
+  const panel = document.getElementById('networkPanel');
+  let startX = null;
+  panel.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+  panel.addEventListener('touchend', e => {
+    if (startX === null) return;
+    if (e.changedTouches[0].clientX - startX > 70) closeMobileNetwork();
+    startX = null;
+  }, { passive: true });
+})();
 
 /* ═══════════════════════ MISC ═══════════════════════ */
 let toastTimer;

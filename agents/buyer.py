@@ -1,6 +1,6 @@
 """
-AgentPay Buyer Agent
-====================
+Hermes Buyer Agent
+==================
 The star of the show. This agent:
 1. Parses natural language shopping requests
 2. Discovers and queries multiple merchants
@@ -12,6 +12,7 @@ The star of the show. This agent:
 """
 
 import asyncio
+import math
 from datetime import datetime
 from typing import Optional
 
@@ -54,6 +55,30 @@ class BuyerAgent:
             entry["data"] = data
         self.event_log.append(entry)
     
+    @staticmethod
+    def _json_safe(value):
+        """Recursively replace non-JSON-compliant floats (e.g. the budget=inf a chat
+        checkout passes for "no hard cap") so protocol message payloads always serialize."""
+        if isinstance(value, float) and not math.isfinite(value):
+            return None
+        if isinstance(value, dict):
+            return {k: BuyerAgent._json_safe(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [BuyerAgent._json_safe(v) for v in value]
+        return value
+
+    @staticmethod
+    def _log_protocol_message(log: list, sender: str, receiver: str, msg_type: str,
+                               summary: str, details: dict) -> None:
+        log.append({
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "sender": sender,
+            "receiver": receiver,
+            "type": msg_type,
+            "summary": summary,
+            "details": BuyerAgent._json_safe(details),
+        })
+
     async def process_request(self, user_request: str, callback=None) -> TransactionReport:
         """
         Main entry point. Takes a natural language request and handles everything.
@@ -284,9 +309,15 @@ Available Merchants:
             self._log("error", f"LLM planning failed: {e}")
             return {"error": str(e)}
     
-    async def negotiate_with_merchant(self, merchant: MerchantAgent, order_plan: dict, 
-                                        budget: float, notify) -> dict:
-        """Run negotiation rounds with a merchant."""
+    async def negotiate_with_merchant(self, merchant: MerchantAgent, order_plan: dict,
+                                        budget: float, notify, protocol_log: Optional[list] = None) -> dict:
+        """Run negotiation rounds with a merchant.
+
+        If protocol_log is given, the real ProtocolMessage exchanged each round
+        (buyer's offer and the merchant's response) is recorded into it as
+        {timestamp, sender, receiver, type, summary, details} — used to drive the
+        agent-network visualization in the dashboard.
+        """
         items = order_plan.get("items", [])
         merchant_name = order_plan["merchant_name"]
         
@@ -315,7 +346,22 @@ Available Merchants:
             )
             
             response = merchant.handle_message(offer_msg)
-            
+
+            if protocol_log is not None:
+                self._log_protocol_message(protocol_log, "Buyer Agent", merchant_name,
+                    offer_msg.type.value,
+                    f"Offering ₹{current_offer:,.0f} for {sum(i['quantity'] for i in items)} unit(s)",
+                    offer_msg.payload)
+
+                response_summaries = {
+                    MessageType.NEGOTIATE_ACCEPT: lambda p: f"Accepted ₹{p.get('accepted_total', current_offer):,.0f}",
+                    MessageType.NEGOTIATE_COUNTER: lambda p: f"Countered with ₹{p.get('counter_total', 0):,.0f}",
+                    MessageType.NEGOTIATE_REJECT: lambda p: f"Rejected — {p.get('reason', 'terms not acceptable')}",
+                }
+                summarize = response_summaries.get(response.type, lambda p: response.type.value)
+                self._log_protocol_message(protocol_log, merchant_name, "Buyer Agent",
+                    response.type.value, summarize(response.payload), response.payload)
+
             await notify("negotiation_round", {
                 "message": f"Round {round_num} with {merchant_name}: "
                            f"Offered ₹{current_offer:,.0f}",

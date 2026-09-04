@@ -1,6 +1,6 @@
 """
-AgentPay Protocol v1.0
-======================
+Hermes Protocol v1.0
+====================
 A standardized protocol for AI agent-to-agent commerce.
 
 This defines the message types and schemas that allow any AI buyer agent
@@ -27,7 +27,7 @@ import json
 
 
 class MessageType(str, Enum):
-    """All possible message types in the AgentPay Protocol."""
+    """All possible message types in the Hermes Protocol."""
     # Discovery
     DISCOVER_REQUEST = "discover.request"
     DISCOVER_RESPONSE = "discover.response"
@@ -115,7 +115,7 @@ class MerchantInfo:
 
 @dataclass 
 class ProtocolMessage:
-    """A single message in the AgentPay protocol."""
+    """A single message in the Hermes protocol."""
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     type: MessageType = MessageType.DISCOVER_REQUEST
     sender: AgentRole = AgentRole.BUYER

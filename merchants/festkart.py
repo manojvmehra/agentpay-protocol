@@ -1,6 +1,6 @@
 """
 FestKart - College fest merch & apparel store
-Demo merchant for AgentPay Protocol
+Demo merchant for Hermes Protocol
 """
 
 from protocol.spec import Product

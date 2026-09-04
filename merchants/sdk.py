@@ -1,6 +1,6 @@
 """
-AgentPay Merchant SDK
-=====================
+Hermes Merchant SDK
+===================
 Make any store AI-transactable in 5 lines of code.
 
 Usage:

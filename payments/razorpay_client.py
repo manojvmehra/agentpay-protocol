@@ -37,7 +37,7 @@ class PaymentResult:
 
 class RazorpayPaymentClient:
     """
-    Handles Razorpay payment operations for the AgentPay protocol.
+    Handles Razorpay payment operations for the Hermes protocol.
     Uses test-mode APIs — no real money is involved.
     """
     
@@ -60,7 +60,7 @@ class RazorpayPaymentClient:
             PaymentResult with order details
         """
         if not receipt_id:
-            receipt_id = f"agentpay_{int(time.time())}"
+            receipt_id = f"hermes_{int(time.time())}"
 
         if SIMULATE_FAILURE and random.random() < SIMULATE_FAILURE_RATE:
             result = PaymentResult(
@@ -83,7 +83,7 @@ class RazorpayPaymentClient:
                 "notes": {
                     "merchant": merchant_name,
                     "items": items_summary[:256],  # Razorpay limits note length
-                    "protocol": "agentpay_v1",
+                    "protocol": "hermes_v1",
                     "agent_type": "buyer",
                 }
             }

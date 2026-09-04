@@ -267,7 +267,7 @@
       <input type="text" id="searchInput" placeholder="Search for products, brands and more">
     </div>
     <div class="header-icons">
-      <a class="back-link" href="/">← AgentPay Chat</a>
+      <a class="back-link" href="/">← Hermes Chat</a>
       <div class="header-icon" onclick="toggleWishlistPanel()">
         <span class="ic">♡</span><span class="lbl">Wishlist</span>
         <span class="icon-count" id="wishlistCount" style="display:none">0</span>
@@ -341,7 +341,7 @@
 </div>
 
 <footer>
-  StyleBazaar is Store 1 on the <a href="/">AgentPay Protocol</a> multi-store network — the AI buyer agent can discover and negotiate with this store too.
+  StyleBazaar is Store 1 on the <a href="/">Hermes Protocol</a> multi-store network — the AI buyer agent can discover and negotiate with this store too.
 </footer>
 
 <!-- Product Detail Modal -->
@@ -795,7 +795,7 @@ function openCheckout(order, btnEl) {
     order_id: order.checkout.order_id,
     name: 'StyleBazaar',
     description: `${order.name} × ${order.quantity}`,
-    prefill: { email: 'test@agentpay.com' },
+    prefill: { email: 'test@hermes.com' },
     theme: { color: '#ff3f6c' },
     handler: async function (response) {
       try {

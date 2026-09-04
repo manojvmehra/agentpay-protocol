@@ -1,6 +1,6 @@
 """
 GlowMart - Beauty & personal care store (Nykaa-style)
-Demo merchant for AgentPay Protocol.
+Demo merchant for Hermes Protocol.
 
 Beauty-advisor personality: upsell rules build out a skincare routine
 (sunscreen->moisturizer, serum->face wash), and combo deals are framed as

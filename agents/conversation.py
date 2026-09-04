@@ -1,7 +1,7 @@
 """
 Conversational Buyer Agent
 ===========================
-Multi-turn chat agent for AgentPay's chat-first UI. Understands shopping
+Multi-turn chat agent for Hermes's chat-first UI. Understands shopping
 intent, asks clarifying questions, searches real merchant catalogs,
 negotiates bulk deals, and creates real Razorpay orders for checkout.
 
@@ -14,9 +14,11 @@ and checkout-able — the same guarantee the older /api/shop flow makes, and
 the same bug class (LLM-invented product IDs) fixed there stays fixed here.
 """
 
+import math
 import re
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
 
 from agents.llm import llm_reason, CONVERSATION_PROMPT
@@ -32,6 +34,18 @@ _STOPWORDS = {
 }
 
 
+def _json_safe(value):
+    """Recursively replace non-JSON-compliant floats (e.g. budget=inf) so protocol
+    message payloads always serialize over the API."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    return value
+
+
 def _meaningful_words(text: str) -> set:
     words = "".join(c if c.isalnum() else " " for c in text.lower()).split()
     return {w for w in words if len(w) > 2 and w not in _STOPWORDS and not w.isdigit()}
@@ -42,6 +56,7 @@ class ChatSession:
     session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     history: list = field(default_factory=list)     # [{"role": "user"/"assistant", "content": str}] for LLM context
     messages: list = field(default_factory=list)     # full rich message log returned to the frontend
+    protocol_messages: list = field(default_factory=list)  # agent-to-agent wire messages, for the network view
     intent: str = "greeting"
     preferences: dict = field(default_factory=dict)  # category / budget_min / budget_max / quantity remembered across turns
     last_shown: list = field(default_factory=list)   # [(Product, MerchantAgent), ...] most recently shown
@@ -79,6 +94,37 @@ class ConversationAgent:
     def _emit_user(self, session: ChatSession, text: str):
         session.messages.append({"type": "text", "content": text, "sender": "user"})
         session.history.append({"role": "user", "content": text})
+
+    def _emit_protocol(self, session: ChatSession, msg_type: str, sender: str, receiver: str,
+                        summary: str, details: Optional[dict] = None) -> dict:
+        """Record a real agent-to-agent wire message for the network visualization panel."""
+        entry = {
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "sender": sender,
+            "receiver": receiver,
+            "type": msg_type,
+            "summary": summary,
+            "details": _json_safe(details or {}),
+        }
+        session.protocol_messages.append(entry)
+        return entry
+
+    def _emit_catalog_messages(self, session: ChatSession, query_label: str, products: list) -> None:
+        """Log a catalog.request/response pair per merchant that returned a match for this search."""
+        by_merchant = {}
+        for p, m in products:
+            by_merchant.setdefault(m.info.id, (m, []))[1].append(p)
+        for merchant, plist in by_merchant.values():
+            self._emit_protocol(
+                session, "catalog.request", "Buyer Agent", merchant.info.name,
+                f"Requesting catalog for: {query_label}",
+                {"query": query_label},
+            )
+            self._emit_protocol(
+                session, "catalog.response", merchant.info.name, "Buyer Agent",
+                f"Returned {len(plist)} matching product{'s' if len(plist) != 1 else ''}",
+                {"products": [p.name for p in plist]},
+            )
 
     def _summarize_for_history(self, msg_type: str, content) -> str:
         """Compact text form of a rich message, for LLM context — not shown to the user."""
@@ -193,6 +239,8 @@ class ConversationAgent:
         out = []
         found = self._find_product(product_id)
         if not found:
+            self._emit_protocol(session, "error", "System", "Buyer Agent",
+                                 f"Checkout failed — product {product_id} not found in any catalog")
             out.append(self._emit(session, "text", "I couldn't find that product anymore — want to search again?"))
             return out
 
@@ -224,7 +272,8 @@ class ConversationAgent:
                 "items": [{"product_id": p.id, "quantity": quantity}],
             }
             neg_result = await self.buyer_agent.negotiate_with_merchant(
-                merchant, order_plan, budget=float("inf"), notify=notify
+                merchant, order_plan, budget=float("inf"), notify=notify,
+                protocol_log=session.protocol_messages,
             )
         else:
             total = p.get_total_for_quantity(quantity)
@@ -237,9 +286,27 @@ class ConversationAgent:
 
         amount = neg_result["final_amount"]
         items_summary = f"{p.name} x{quantity}"
+
+        self._emit_protocol(
+            session, "payment.initiate", "Buyer Agent", "Razorpay",
+            f"Initiating payment of ₹{amount:,.0f} to {merchant.info.name}",
+            {"amount": amount, "merchant": merchant.info.name, "items": items_summary},
+        )
         payment_result = await self.buyer_agent.payment_client.create_order_with_retry(
             amount, merchant.info.name, items_summary
         )
+        if payment_result.success:
+            self._emit_protocol(
+                session, "payment.success", "Razorpay", "Buyer Agent",
+                f"Payment succeeded — order {payment_result.order_id}",
+                {"order_id": payment_result.order_id, "payment_id": payment_result.payment_id},
+            )
+        else:
+            self._emit_protocol(
+                session, "payment.failed", "Razorpay", "Buyer Agent",
+                f"Payment failed: {payment_result.error}",
+                {"error": payment_result.error, "attempts": payment_result.attempts},
+            )
 
         original_total = neg_result.get("original_total", amount) or amount
         savings = neg_result.get("savings", 0)
@@ -299,6 +366,7 @@ class ConversationAgent:
             decision = await llm_reason(system_prompt, user_message)
         except Exception as e:
             print(f"[conversation] llm_reason failed: {e}")
+            self._emit_protocol(session, "error", "System", "Buyer Agent", f"LLM reasoning failed: {e}")
             return [self._emit(session, "text", "Sorry, I had trouble understanding that — could you rephrase?")]
 
         if not isinstance(decision, dict) or "error" in decision:
@@ -344,6 +412,7 @@ class ConversationAgent:
                 products = self._search_products(keywords=focused_keywords, limit=3)
                 if products:
                     session.last_shown = products
+                    self._emit_catalog_messages(session, label or ", ".join(focused_keywords), products)
                     if label:
                         out.append(self._emit(session, "text", f"**{label}:**"))
                     cards = [self._product_card(p, m) for p, m in products]
@@ -394,6 +463,7 @@ class ConversationAgent:
                 ))
             else:
                 session.last_shown = products
+                self._emit_catalog_messages(session, category or ", ".join(keywords) or "products", products)
                 cards = [self._product_card(p, m) for p, m in products]
                 if action == "compare":
                     out.append(self._emit(session, "comparison", {"items": cards}))

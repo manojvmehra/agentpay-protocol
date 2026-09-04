@@ -1,6 +1,6 @@
 """
 SportStar - Sports & fitness gear store
-Demo merchant for AgentPay Protocol
+Demo merchant for Hermes Protocol
 """
 
 from protocol.spec import Product

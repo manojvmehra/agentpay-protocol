@@ -1,6 +1,6 @@
 """
 GadgetStore - Electronics & gadgets store (Croma/Amazon-style)
-Demo merchant for AgentPay Protocol.
+Demo merchant for Hermes Protocol.
 
 Tech-expert personality: upsell rules pair accessories with the gear they
 belong to (earphones->case, laptop stand->keyboard), and combo deals are

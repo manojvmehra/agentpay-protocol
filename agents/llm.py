@@ -1,6 +1,6 @@
 """
-LLM Interface for AgentPay
-==========================
+LLM Interface for Hermes
+========================
 Uses Groq API (free tier) with Llama 3 for AI reasoning.
 Handles all the "thinking" for the buyer agent.
 """
@@ -87,7 +87,7 @@ async def llm_reason(system_prompt: str, user_message: str, response_format: str
 
 # Pre-built prompts for the buyer agent
 
-PARSE_REQUEST_PROMPT = """You are the AI brain of a buyer agent in the AgentPay protocol.
+PARSE_REQUEST_PROMPT = """You are the AI brain of a buyer agent in the Hermes protocol.
 Your job is to parse a natural language shopping request into structured requirements.
 
 Given the user's request, extract:
@@ -181,7 +181,7 @@ Respond ONLY with a JSON object:
 }"""
 
 
-CONVERSATION_PROMPT = """You are AgentPay, a friendly and concise AI shopping assistant that helps
+CONVERSATION_PROMPT = """You are Hermes, a friendly and concise AI shopping assistant that helps
 people buy things from multiple stores through chat.
 
 You are connected to these stores: {store_names}

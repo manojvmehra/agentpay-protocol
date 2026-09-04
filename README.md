@@ -1,17 +1,17 @@
-# AgentPay Protocol
+# Hermes Protocol
 
-> Making any Razorpay merchant instantly transactable by AI agents.
+> Hermes Protocol — AI agent commerce on Razorpay. The messenger between buyers and sellers.
 
 ## 🎯 What is this?
 
-AgentPay is an open protocol + SDK that enables **agent-to-agent commerce** — where an AI buyer agent can discover merchants, browse catalogs, negotiate deals, and complete payments through Razorpay, without any human intervention.
+Hermes is an open protocol + SDK that enables **agent-to-agent commerce** — where an AI buyer agent can discover merchants, browse catalogs, negotiate deals, and complete payments through Razorpay, without any human intervention.
 
 **One command. Multiple merchants. Real payments. Full autonomy.**
 
 ```
 You: "Plan my college fest for 500 people. Need merch, printing, and food. Budget ₹1,50,000"
 
-AgentPay: Talking to 3 merchants... negotiating bulk deals... comparing prices...
+Hermes: Talking to 3 merchants... negotiating bulk deals... comparing prices...
   → FestKart: 500 t-shirts @ ₹280/ea (15% bulk discount) = ₹1,40,000 ✗ over budget
   → FestKart: 300 t-shirts + 200 caps combo @ ₹220/ea = ₹66,000 ✓
   → PrintBoss: 50 banners + 500 ID cards = ₹32,000 ✓  
@@ -56,13 +56,13 @@ AgentPay: Talking to 3 merchants... negotiating bulk deals... comparing prices..
 - **AI Engine**: Groq API (Llama 3 / Mistral) — free, fast, open-source
 - **Payments**: Razorpay Python SDK (test-mode)
 - **Frontend**: React dashboard
-- **Protocol**: AgentPay JSON Protocol v1
+- **Protocol**: Hermes JSON Protocol v1
 
 ## 📁 Project Structure
 
 ```
 agentpay-protocol/
-├── protocol/           # The AgentPay Protocol specification
+├── protocol/           # The Hermes Protocol specification
 │   └── spec.py         # Protocol message types & schema
 ├── merchants/          # Merchant SDK + demo merchants
 │   ├── sdk.py          # MerchantSDK - 5 lines to make any store agent-ready

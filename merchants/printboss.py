@@ -1,6 +1,6 @@
 """
 PrintBoss - Printing & signage services
-Demo merchant for AgentPay Protocol
+Demo merchant for Hermes Protocol
 """
 
 from protocol.spec import Product
